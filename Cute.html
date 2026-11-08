@@ -659,6 +659,7 @@ function renderLeg(ctx,ms,still,index,overall){
     glow.addColorStop(0,"#e1eaff66");glow.addColorStop(1,"#e1eaff00");
     ctx.fillStyle=glow;ctx.beginPath();ctx.arc(mx,my,48,0,Math.PI*2);ctx.fill();
     ctx.fillStyle="#f2f4dc";ctx.beginPath();ctx.arc(mx,my,14,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(mx,my,14,0,Math.PI*2);ctx.clip();
     ctx.fillStyle="#1a2e52";ctx.fillRect(mx,my-14,15,28);
     ctx.restore();
   }
