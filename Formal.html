@@ -680,7 +680,7 @@ function renderLeg(ctx,ms,still,index,overall){
   const mins=Math.round((trip.km/mode.speed*60+mode.extra)*progress);
   const fmt=new Intl.NumberFormat("es-CL");
   centered(ctx,"DISTANCIA DEL TRAMO",98,558,9,"#aebfda",145);
-  centered(ctx,`${fmt.format(Math.round(trip.km*progress))} km`,98,582,23,"#f5f7ff",145,850);
+  centered(ctx,`${trip.routeKind==="fictional"||trip.approximate?"≈ ":""}${fmt.format(Math.round(trip.km*progress))} km`,98,582,23,"#f5f7ff",145,850);
   centered(ctx,"TIEMPO ESTIMADO",262,558,9,"#aebfda",145);
   centered(ctx,`${Math.floor(mins/60)} h ${String(mins%60).padStart(2,"0")} min`,262,582,22,"#f5f7ff",145,850);
   pill(ctx,20,615,320,3,2,"#273a57");
