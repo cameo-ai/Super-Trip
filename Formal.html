@@ -603,7 +603,22 @@ function startMusic(offset,destination){
   stopMusic();
   if(!musicBuffer)return;
   const source=audioContext.createBufferSource();
-  source.buffer=musicBuffer;source.loop=true;source.connect(destination);
+  const gain=audioContext.createGain();
+  source.buffer=musicBuffer;source.loop=true;
+  source.connect(gain);gain.connect(destination);
+  const remaining=Math.max(0,(totalDuration()-offset)/1000);
+  const fadeSeconds=Math.min(5,totalDuration()/1000*.15);
+  const fadeStart=Math.max(0,(totalDuration()/1000)-fadeSeconds-offset/1000);
+  const now=audioContext.currentTime;
+  gain.gain.setValueAtTime(1,now);
+  if(remaining<=fadeSeconds){
+    const fraction=fadeSeconds>0?Math.max(0,Math.min(1,remaining/fadeSeconds)):0;
+    gain.gain.setValueAtTime(fraction,now);
+    gain.gain.linearRampToValueAtTime(0,now+remaining);
+  }else{
+    gain.gain.setValueAtTime(1,now+fadeStart);
+    gain.gain.linearRampToValueAtTime(0,now+remaining);
+  }
   source.start(0,(offset/1000)%musicBuffer.duration);musicSource=source;
 }
 function previewMusic(){
