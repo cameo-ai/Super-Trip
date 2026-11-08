@@ -133,6 +133,12 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
           <label>Duración de este tramo (segundos, opcional)
             <input name="leg-seconds" type="number" min="1" max="300" step="1" placeholder="Automática">
           </label>
+          <label>Fotografía al salir (opcional)
+            <input name="departure-photo" type="file" accept="image/png,image/jpeg,image/webp">
+          </label>
+          <label>Duración de la fotografía de salida (segundos)
+            <input name="departure-photo-seconds" type="number" min="1" max="30" step="1" value="5">
+          </label>
           <label>Fotografía al llegar (opcional)
             <input name="arrival-photo" type="file" accept="image/png,image/jpeg,image/webp">
           </label>
@@ -334,6 +340,9 @@ function schedule(legs,seconds){
   let cursor=card;
   legs.forEach((leg,index)=>{
     leg.startTime=cursor;
+    leg.departureHold=leg.departurePhoto?Math.max(1000,Math.min(30000,(leg.departurePhotoSeconds||5)*1000)):0;
+    cursor+=leg.departureHold;
+    leg.motionStart=cursor;
     const duration=Number.isFinite(leg.seconds)&&leg.seconds>0?leg.seconds*1000:
       custom?free*weights[index]/Math.max(1,missingWeights):
       available*(.35/legs.length+.65*weights[index]/sum);
@@ -341,7 +350,7 @@ function schedule(legs,seconds){
     leg.photoHold=leg.photo?Math.max(1000,Math.min(30000,(leg.photoSeconds||5)*1000)):0;
     cursor+=leg.photoHold;leg.endTime=cursor;
   });
-  if(custom||legs.some(leg=>leg.photoHold))durationInput.value=String(Math.max(1,Math.ceil((cursor+card)/1000)));
+  if(custom||legs.some(leg=>leg.photoHold||leg.departureHold))durationInput.value=String(Math.max(1,Math.ceil((cursor+card)/1000)));
 }
 function makeRoute(coords){
   const path=new Path2D();
@@ -495,17 +504,21 @@ function render(ctx,ms,still=false){
   const index=next<0?itinerary.length-1:next;
   trip=itinerary[index];
   const travelEnd=trip.travelEnd||trip.endTime;
-  const fraction=clamp((ms-trip.startTime)/Math.max(1,travelEnd-trip.startTime));
+  const motionStart=trip.motionStart||trip.startTime;
+  const fraction=clamp((ms-motionStart)/Math.max(1,travelEnd-motionStart));
   renderLeg(ctx,fraction*DURATION,still,index,clamp(ms/totalDuration()));
-  if(trip.photo&&ms>=travelEnd)renderArrivalPhoto(ctx,trip,clamp((ms-travelEnd)/Math.max(1,trip.photoHold)),true);
+  if(trip.departurePhoto&&ms<motionStart)
+    renderTripPhoto(ctx,trip.departurePhoto,trip.from,clamp((ms-trip.startTime)/Math.max(1,trip.departureHold)));
+  if(trip.photo&&ms>=travelEnd)
+    renderTripPhoto(ctx,trip.photo,trip.to,clamp((ms-travelEnd)/Math.max(1,trip.photoHold)));
 }
 const arrivalImages=new Map();
-function renderArrivalPhoto(ctx,leg,fraction,holding=false){
-  if(!leg.photo||(!holding&&fraction<.82))return;
-  let image=arrivalImages.get(leg.photo);
-  if(!image){image=new Image();image.src=leg.photo;arrivalImages.set(leg.photo,image);}
+function renderTripPhoto(ctx,source,city,fraction){
+  if(!source)return;
+  let image=arrivalImages.get(source);
+  if(!image){image=new Image();image.src=source;arrivalImages.set(source,image);}
   if(!image.complete||!image.naturalWidth)return;
-  const alpha=holding?ease(clamp(fraction/.12))*(fraction>.90?clamp((1-fraction)/.10):1):ease(clamp((fraction-.82)/.10))*(fraction>.97?clamp((1-fraction)/.03):1);
+  const alpha=ease(clamp(fraction/.12))*(fraction>.90?clamp((1-fraction)/.10):1);
   ctx.save();ctx.setTransform(ctx.canvas.width/W,0,0,ctx.canvas.height/H,0,0);
   ctx.globalAlpha=alpha;
   ctx.fillStyle="#f8fff0";
@@ -514,7 +527,7 @@ function renderArrivalPhoto(ctx,leg,fraction,holding=false){
   const width=image.width*ratio,height=image.height*ratio;
   ctx.save();ctx.beginPath();ctx.roundRect(40,174,280,198,10);ctx.clip();
   ctx.drawImage(image,180-width/2,174+(198-height)/2,width,height);ctx.restore();
-  centered(ctx,leg.to,180,398,20,"#194440",265);
+  centered(ctx,city,180,398,20,"#194440",265);
   ctx.restore();
 }
 function renderLeg(ctx,ms,still,index,overall){
@@ -679,6 +692,7 @@ function addLeg(values){
   row.querySelector('[name="leg-time"]').value=values?.timeOfDay??"auto";
   row.querySelector('[name="leg-seconds"]').value=values?.seconds??"";
   row.querySelector('[name="photo-seconds"]').value=values?.photoSeconds??5;
+  row.querySelector('[name="departure-photo-seconds"]').value=values?.departurePhotoSeconds??5;
   const remove=row.querySelector(".leg-remove");remove.hidden=false;
   remove.addEventListener("click",()=>{row.remove();numberLegs();$("add-leg").focus();});
   list.append(row);numberLegs();
@@ -723,7 +737,7 @@ function configure(autoplay){
       const at=route.points.findIndex(p=>p.x===port.x&&p.y===port.y);
       if(at>0)transfer={...found.transfer,index:at};
     }
-    next.push({...found,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5,photo:row._arrivalPhoto||null,timeOfDay:row.querySelector('[name="leg-time"]').value,routeKind:kind,key,mode:modes[key],route,transfer,geoKm});
+    next.push({...found,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5,photo:row._arrivalPhoto||null,departurePhoto:row._departurePhoto||null,departurePhotoSeconds:Number(row.querySelector('[name="departure-photo-seconds"]').value)||5,timeOfDay:row.querySelector('[name="leg-time"]').value,routeKind:kind,key,mode:modes[key],route,transfer,geoKm});
   }
   stop();schedule(next,durationInput.valueAsNumber);itinerary=next;
   rows.forEach((row,index)=>{
@@ -933,7 +947,7 @@ projectSave.addEventListener("click",async()=>{
   if(exporting)return;
   const rows=[...$("legs").children].map(row=>{
     const [from,to,mode]=legFields(row);
-    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,timeOfDay:row.querySelector('[name="leg-time"]').value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5};
+    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,timeOfDay:row.querySelector('[name="leg-time"]').value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5,departurePhotoSeconds:Number(row.querySelector('[name="departure-photo-seconds"]').value)||5};
   });
   const musicFile=musicInput.files?.[0];
   try{
@@ -1005,7 +1019,7 @@ function rememberLastTrip(){
   try{
     const legs=[...$("legs").children].map(row=>{
       const [from,to,mode]=legFields(row);
-      return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,timeOfDay:row.querySelector('[name="leg-time"]').value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5};
+      return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,timeOfDay:row.querySelector('[name="leg-time"]').value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5,departurePhotoSeconds:Number(row.querySelector('[name="departure-photo-seconds"]').value)||5};
     });
     localStorage.setItem(lastTripKey,JSON.stringify({
       version:1,legs,duration:durationInput.value,lighting:$("day-night").value,
@@ -1030,6 +1044,7 @@ function restoreLastTrip(snapshot){
     list.firstElementChild.querySelector('[name="leg-time"]').value=first.timeOfDay??"auto";
     list.firstElementChild.querySelector('[name="leg-seconds"]').value=first.seconds??"";
     list.firstElementChild.querySelector('[name="photo-seconds"]').value=first.photoSeconds??5;
+    list.firstElementChild.querySelector('[name="departure-photo-seconds"]').value=first.departurePhotoSeconds??5;
     for(const leg of saved.legs.slice(1))addLeg(leg);
     numberLegs();
     if(["day","night","cycle"].includes(saved.lighting))$("day-night").value=saved.lighting;
@@ -1070,7 +1085,7 @@ const libraryWrite=items=>localStorage.setItem(libraryKey,JSON.stringify(items))
 const snapshotTrip=()=>{
   const legs=[...$("legs").children].map(row=>{
     const [from,to,mode]=legFields(row);
-    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,timeOfDay:row.querySelector('[name="leg-time"]').value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5};
+    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,timeOfDay:row.querySelector('[name="leg-time"]').value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5,departurePhotoSeconds:Number(row.querySelector('[name="departure-photo-seconds"]').value)||5};
   });
   return {version:1,legs,duration:durationInput.value,lighting:$("day-night").value,format:selectedFormat,
     audio:{volume:musicVolume.value,fadeIn:musicFadeIn.value,start:musicStart.value,
@@ -1140,13 +1155,14 @@ libraryRender();
 $("day-night").addEventListener("change",()=>{rememberLastTrip();if(itinerary.length)render(view,elapsed,reduced.matches);});
 $("legs").addEventListener("change",async event=>{
   const input=event.target;
-  if(input.name!=="arrival-photo")return;
+  if(input.name!=="arrival-photo"&&input.name!=="departure-photo")return;
   const file=input.files?.[0],row=input.closest("fieldset");
-  if(!file){row._arrivalPhoto=null;return;}
+  const property=input.name==="departure-photo"?"_departurePhoto":"_arrivalPhoto";
+  if(!file){row[property]=null;return;}
   if(!/^image\/(jpeg|png|webp)$/.test(file.type)||file.size>3*1024*1024){
     status.textContent="La fotografía debe ser JPG, PNG o WebP de hasta 3 MB.";input.value="";return;
   }
-  row._arrivalPhoto=await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.readAsDataURL(file);});
+  row[property]=await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.readAsDataURL(file);});
   status.textContent="Fotografía lista. Pulsa Crear viaje para incorporarla.";
 });
 seekInput.addEventListener("input",()=>{
