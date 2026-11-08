@@ -535,8 +535,14 @@ function render(ctx,ms,still=false){
 }
 function renderLeg(ctx,ms,still,index,overall){
   ctx.setTransform(ctx.canvas.width/W,0,0,ctx.canvas.height/H,0,0);
-  const progress=ease(clamp(ms/ARRIVAL));
+  // Animación por tramo: salida suave, viaje, frenado/aterrizaje y pausa al llegar.
+  // Basada solo en tiempo para reproducirse igual en vista previa y exportación.
+  const phase=clamp(ms/DURATION);
+  const depart=.09,arrive=.87;
+  const motion=clamp((phase-depart)/(arrive-depart));
+  const progress=ease(motion);
   const visual=still?Math.floor(progress*4)/4:progress;
+  const departing=phase<depart,arrived=phase>=arrive;
   let distance=visual*trip.route.distance;
   let mode=trip.mode;
   if(trip.transfer){
@@ -576,7 +582,10 @@ function renderLeg(ctx,ms,still,index,overall){
 
   drawMap(ctx,camera,zoom,progress,distance,point,ms,still);
   const x=180+(point.x-camera.x)*zoom,y=345+(point.y-camera.y)*zoom;
-  ctx.save();ctx.translate(x,y);ctx.rotate(heading);ctx.scale(.72,.72);
+  const airborne=mode===modes.avion?Math.sin(Math.PI*progress):0;
+  const bob=mode===modes.barco&&!still?Math.sin(ms/290)*2:0;
+  const roll=mode===modes.barco&&!still?Math.sin(ms/460)*.045:0;
+  ctx.save();ctx.translate(x,y-airborne*5+bob);ctx.rotate(heading+roll);ctx.scale(.72+.08*airborne,.72+.08*airborne);
   if(mode===modes.bus){
     // Autobús interurbano visto desde arriba, orientado según la carretera.
     // Mantiene el tamaño y el estilo del mapa Formal.
@@ -619,7 +628,7 @@ function renderLeg(ctx,ms,still,index,overall){
       ? trip.reverse?"De Valparaíso a Santiago":"Rumbo al puerto de Valparaíso"
       : trip.reverse?"Navegando hacia Valparaíso":"Rumbo a Río por el cabo de Hornos"
     : progress<.20?`¡Salimos de ${trip.from}!`:mode.caption;
-  const caption=progress===1?`¡Llegamos a ${trip.to}!`:progress<.93?underway:"¡Ya casi llegamos!";
+  const caption=arrived?`¡Llegamos a ${trip.to}!`:departing?(mode===modes.avion?"Preparando el despegue":mode===modes.barco?"¡Zarpamos!":mode===modes.bus?"Saliendo de la terminal":`¡Salimos de ${trip.from}!`):progress<.93?underway:"¡Ya casi llegamos!";
   pill(ctx,22,496,316,32,9,"#202b40");
   centered(ctx,caption,180,512,14,"#f5f7ff",290);
   pill(ctx,16,543,328,66,14,"#17253d");
