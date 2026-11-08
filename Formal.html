@@ -85,6 +85,7 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
           <input id="video-duration" type="number" min="1" max="300" step="1" required value="30">
         </label>
         <button id="apply-duration" type="button" disabled>Aplicar duración</button>
+        <label>Iluminación <select id="day-night"><option value="day">Día</option><option value="night">Noche</option><option value="cycle">Día y noche</option></select></label>
       </div>
       <div class="music-settings">
         <label>Música de fondo (MP3)
@@ -124,6 +125,12 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
             </select>
           </label>
           <small>Automática conserva el comportamiento anterior. Real exige trazado incorporado verificado; ficticia dibuja una curva ilustrativa.</small>
+          <label>Duración de este tramo (segundos, opcional)
+            <input name="leg-seconds" type="number" min="1" max="300" step="1" placeholder="Automática">
+          </label>
+          <label>Fotografía al llegar (opcional)
+            <input name="arrival-photo" type="file" accept="image/png,image/jpeg,image/webp">
+          </label>
           <button class="leg-remove" type="button" hidden>Quitar tramo</button>
         </fieldset>
       </div>
@@ -359,22 +366,30 @@ const audioSetting=(input,fallback)=>{const n=Number(input.value);return Number.
 
 let itinerary=[],trip=null, elapsed=0, previous=null, frame=0, playing=false, exporting=false;
 const durationInput=$("video-duration"),applyDurationButton=$("apply-duration");
-const totalDuration=()=>itinerary.length?Number(durationInput.value)*1000:0;
+const totalDuration=()=>itinerary.length?(itinerary.at(-1).endTime+Math.min(2500,Number(durationInput.value)*100)):0;
 const cardDuration=()=>Math.min(2500,totalDuration()*.10);
 
 function schedule(legs,seconds){
-  const full=seconds*1000;
-  const card=Math.min(2500,full*.10);
-  const total=full-2*card;
+  const custom=legs.some(leg=>Number.isFinite(leg.seconds)&&leg.seconds>0);
+  const requested=seconds*1000;
   const weights=legs.map(leg=>Math.sqrt(Math.max(1,leg.km)));
   const sum=weights.reduce((a,b)=>a+b,0);
-  const minimum=total*.35/legs.length;
+  const specified=legs.reduce((sum,leg)=>sum+(Number.isFinite(leg.seconds)&&leg.seconds>0?leg.seconds*1000:0),0);
+  const missing=legs.filter(leg=>!(Number.isFinite(leg.seconds)&&leg.seconds>0));
+  const base=custom?Math.max(requested,specified+missing.length*1000):requested;
+  const card=Math.min(2500,base*.10);
+  const available=Math.max(1000,base-2*card);
+  const free=Math.max(missing.length*1000,available-specified);
+  const missingWeights=legs.reduce((sum,leg,i)=>sum+(Number.isFinite(leg.seconds)&&leg.seconds>0?0:weights[i]),0);
   let cursor=card;
   legs.forEach((leg,index)=>{
     leg.startTime=cursor;
-    cursor=index===legs.length-1?full-card:cursor+minimum+total*.65*weights[index]/sum;
-    leg.endTime=cursor;
+    const duration=Number.isFinite(leg.seconds)&&leg.seconds>0?leg.seconds*1000:
+      custom?free*weights[index]/Math.max(1,missingWeights):
+      available*(.35/legs.length+.65*weights[index]/sum);
+    cursor+=duration;leg.endTime=cursor;
   });
+  if(custom)durationInput.value=String(Math.max(1,Math.ceil((cursor+card)/1000)));
 }
 function distanceKm(coords){
   const rad=Math.PI/180;
@@ -538,6 +553,25 @@ function render(ctx,ms,still=false){
   trip=itinerary[index];
   const fraction=clamp((ms-trip.startTime)/(trip.endTime-trip.startTime));
   renderLeg(ctx,fraction*DURATION,still,index,clamp(ms/totalDuration()));
+  renderArrivalPhoto(ctx,trip,fraction);
+}
+const arrivalImages=new Map();
+function renderArrivalPhoto(ctx,leg,fraction){
+  if(!leg.photo||fraction<.82)return;
+  let image=arrivalImages.get(leg.photo);
+  if(!image){image=new Image();image.src=leg.photo;arrivalImages.set(leg.photo,image);}
+  if(!image.complete||!image.naturalWidth)return;
+  const alpha=ease(clamp((fraction-.82)/.10))*(fraction>.97?clamp((1-fraction)/.03):1);
+  ctx.save();ctx.setTransform(ctx.canvas.width/W,0,0,ctx.canvas.height/H,0,0);
+  ctx.globalAlpha=alpha;
+  ctx.fillStyle="#122139";
+  ctx.beginPath();ctx.roundRect(32,166,296,260,16);ctx.fill();
+  const ratio=Math.max(280/image.width,198/image.height);
+  const width=image.width*ratio,height=image.height*ratio;
+  ctx.save();ctx.beginPath();ctx.roundRect(40,174,280,198,10);ctx.clip();
+  ctx.drawImage(image,180-width/2,174+(198-height)/2,width,height);ctx.restore();
+  centered(ctx,leg.to,180,398,20,"#f7f9ff",265);
+  ctx.restore();
 }
 function renderLeg(ctx,ms,still,index,overall){
   ctx.setTransform(ctx.canvas.width/W,0,0,ctx.canvas.height/H,0,0);
@@ -620,6 +654,10 @@ function renderLeg(ctx,ms,still,index,overall){
     }
   }
   ctx.restore();
+  // Iluminación cinematográfica aplicada sobre el mapa y los vehículos.
+  const lighting=$("day-night").value;
+  const darkness=lighting==="night"?.34:lighting==="cycle"?.34*(.5-.5*Math.cos(overall*Math.PI*2)):0;
+  if(darkness){ctx.fillStyle=`rgba(4,12,35,${darkness})`;ctx.fillRect(0,0,W,H);}
   const fade=ctx.createLinearGradient(0,0,0,115);
   fade.addColorStop(0,"#0a1428");fade.addColorStop(1,"#0a142800");
   ctx.fillStyle=fade;ctx.fillRect(0,0,W,115);
@@ -705,6 +743,7 @@ function addLeg(values){
   to.value=values?.destino??"";
   mode.value=values?.transporte??"bus";
   routeKind(row).value=values?.routeKind??"auto";
+  row.querySelector('[name="leg-seconds"]').value=values?.seconds??"";
   const remove=row.querySelector(".leg-remove");remove.hidden=false;
   remove.addEventListener("click",()=>{row.remove();numberLegs();$("add-leg").focus();});
   list.append(row);numberLegs();
@@ -744,7 +783,7 @@ function configure(autoplay){
       const at=route.points.findIndex(p=>p.x===port.x&&p.y===port.y);
       if(at>0)transfer={...found.transfer,index:at};
     }
-    next.push({...found,routeKind:kind,key,mode:modes[key],route,transfer,km:distanceKm(coords)});
+    next.push({...found,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photo:row._arrivalPhoto||null,routeKind:kind,key,mode:modes[key],route,transfer,km:distanceKm(coords)});
   }
   stop();schedule(next,durationInput.valueAsNumber);itinerary=next;
   rows.forEach((row,index)=>{
@@ -947,7 +986,7 @@ projectSave.addEventListener("click",async()=>{
   if(exporting)return;
   const rows=[...$("legs").children].map(row=>{
     const [from,to,mode]=legFields(row);
-    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value};
+    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null};
   });
   const musicFile=musicInput.files?.[0];
   try{
@@ -1019,10 +1058,10 @@ function rememberLastTrip(){
   try{
     const legs=[...$("legs").children].map(row=>{
       const [from,to,mode]=legFields(row);
-      return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value};
+      return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null};
     });
     localStorage.setItem(lastTripKey,JSON.stringify({
-      version:1,legs,duration:durationInput.value,
+      version:1,legs,duration:durationInput.value,lighting:$("day-night").value,
       format:selectedFormat,
       audio:{volume:musicVolume.value,fadeIn:musicFadeIn.value,start:musicStart.value,
         filename:musicInput.files?.[0]?.name||""}
@@ -1041,8 +1080,10 @@ function restoreLastTrip(snapshot){
     fields[1].value=String(first.destino||"");
     fields[2].value=String(first.transporte||"bus");
     routeKind(list.firstElementChild).value=first.routeKind||"auto";
+    list.firstElementChild.querySelector('[name="leg-seconds"]').value=first.seconds??"";
     for(const leg of saved.legs.slice(1))addLeg(leg);
     numberLegs();
+    if(["day","night","cycle"].includes(saved.lighting))$("day-night").value=saved.lighting;
     const duration=Number(saved.duration);
     if(Number.isFinite(duration)&&duration>=1&&duration<=300)durationInput.value=String(duration);
     musicVolume.value=String(saved.audio?.volume??80);
@@ -1080,9 +1121,9 @@ const libraryWrite=items=>localStorage.setItem(libraryKey,JSON.stringify(items))
 const snapshotTrip=()=>{
   const legs=[...$("legs").children].map(row=>{
     const [from,to,mode]=legFields(row);
-    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value};
+    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null};
   });
-  return {version:1,legs,duration:durationInput.value,format:selectedFormat,
+  return {version:1,legs,duration:durationInput.value,lighting:$("day-night").value,format:selectedFormat,
     audio:{volume:musicVolume.value,fadeIn:musicFadeIn.value,start:musicStart.value,
       filename:musicInput.files?.[0]?.name||""}};
 };
@@ -1147,6 +1188,18 @@ $("library-save").addEventListener("click",()=>{
   }catch(error){status.textContent="No se pudo guardar en este navegador: "+(error.message||error);}
 });
 libraryRender();
+$("day-night").addEventListener("change",()=>{rememberLastTrip();if(itinerary.length)render(view,elapsed,reduced.matches);});
+$("legs").addEventListener("change",async event=>{
+  const input=event.target;
+  if(input.name!=="arrival-photo")return;
+  const file=input.files?.[0],row=input.closest("fieldset");
+  if(!file){row._arrivalPhoto=null;return;}
+  if(!/^image\/(jpeg|png|webp)$/.test(file.type)||file.size>3*1024*1024){
+    status.textContent="La fotografía debe ser JPG, PNG o WebP de hasta 3 MB.";input.value="";return;
+  }
+  row._arrivalPhoto=await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.readAsDataURL(file);});
+  status.textContent="Fotografía lista. Pulsa Crear viaje para incorporarla.";
+});
 seekInput.addEventListener("input",()=>{
   if(!itinerary.length||exporting)return;
   const resume=playing;
