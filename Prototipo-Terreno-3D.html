@@ -26,7 +26,13 @@ function applyPhase(v){const value=Math.max(0,Math.min(100,Number(v))),index=Mat
  $("night").style.opacity=interpolate(stops[index].night,stops[index+1].night,t);
  $("phase-label").textContent=labels[Math.min(4,Math.round(value/25))];
  document.querySelectorAll("[data-stage]").forEach(b=>b.setAttribute("aria-pressed",Number(b.dataset.stage)===Math.round(value/25)?"true":"false"));
- if(viewer){viewer.scene.globe.enableLighting=true;viewer.scene.light=new Cesium.DirectionalLight({direction:Cesium.Cartesian3.normalize(new Cesium.Cartesian3(-1,0.3,interpolate(.12,.9,Math.sin(value/100*Math.PI))),new Cesium.Cartesian3())});}
+ if(viewer){
+   // La iluminación solar astronómica oscurecía el terreno según la hora real.
+   // Mantener la superficie visible y aplicar los cinco estados mediante color.
+   viewer.scene.globe.enableLighting=false;
+   viewer.scene.globe.dynamicAtmosphereLighting=false;
+   viewer.scene.globe.dynamicAtmosphereLightingFromSun=false;
+ }
 }
 $("phase").addEventListener("input",e=>applyPhase(e.target.value));
 document.querySelectorAll("[data-stage]").forEach(b=>b.addEventListener("click",()=>{$("phase").value=Number(b.dataset.stage)*25;applyPhase($("phase").value)}));
@@ -50,14 +56,28 @@ async function start(){const token=$("token").value.trim();if(!token){$("status"
  Cesium.Ion.defaultAccessToken=token;
  const terrain=await Cesium.createWorldTerrainAsync();
  // Evitar la dependencia del recurso ion de imágenes (asset 2): OSM es independiente.
- const imagery=new Cesium.ImageryLayer(new Cesium.OpenStreetMapImageryProvider({url:"https://tile.openstreetmap.org/"}));
+ // Preferir fotografía aérea (asset 2 de Cesium ion) para reproducir el concepto.
+ // Si la cuenta no tiene acceso, usar cartografía OSM e informar del fallback.
+ let imagery,imageryMode="fotografía aérea";
+ try{
+   const aerial=await Cesium.IonImageryProvider.fromAssetId(2);
+   imagery=new Cesium.ImageryLayer(aerial);
+ }catch(aerialError){
+   imageryMode="mapa OpenStreetMap (sin fotografía aérea)";
+   imagery=new Cesium.ImageryLayer(new Cesium.OpenStreetMapImageryProvider({url:"https://tile.openstreetmap.org/"}));
+ }
  viewer=new Cesium.Viewer("map",{terrainProvider:terrain,baseLayer:imagery,animation:false,timeline:false,baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,fullscreenButton:false,infoBox:false,selectionIndicator:false});
  viewer.scene.globe.depthTestAgainstTerrain=false;
+ viewer.scene.globe.enableLighting=false;
+ viewer.scene.globe.dynamicAtmosphereLighting=false;
+ viewer.scene.globe.baseColor=Cesium.Color.fromCssColorString("#447b9a");
+ viewer.scene.backgroundColor=Cesium.Color.fromCssColorString("#071327");
+ viewer.scene.globe.showGroundAtmosphere=true;
  const p=positions();cities.forEach((c,i)=>viewer.entities.add({position:p[i],point:{pixelSize:12,color:Cesium.Color.fromCssColorString("#ff694d"),outlineColor:Cesium.Color.WHITE,outlineWidth:2},label:{text:c.name,font:"bold 16px sans-serif",fillColor:Cesium.Color.WHITE,showBackground:true,backgroundColor:Cesium.Color.fromCssColorString("#09172c"),pixelOffset:new Cesium.Cartesian2(0,22)}}));
  const coords=[];for(let i=0;i<=100;i++){let t=i/100;coords.push(Cesium.Cartesian3.fromDegrees(interpolate(cities[0].lon,cities[1].lon,t),interpolate(cities[0].lat,cities[1].lat,t),12000+Math.sin(Math.PI*t)*210000))}
  route=viewer.entities.add({polyline:{positions:coords,width:3,material:new Cesium.PolylineDashMaterialProperty({color:Cesium.Color.WHITE,dashLength:14})}});
  viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(-58,-28,4200000),duration:2.5});
- $("flight").disabled=false;$("reset").disabled=false;$("token").value="";$("status").textContent="Terreno 3D cargado. El token permanece solo en memoria durante esta sesión.";
+ $("flight").disabled=false;$("reset").disabled=false;$("token").value="";$("status").textContent="Terreno 3D cargado con "+imageryMode+". El token permanece solo en memoria durante esta sesión.";
  applyPhase($("phase").value);
  }catch(err){const message=err?.message||String(err);
  $("status").textContent="No se pudo cargar el terreno: "+message.replaceAll(token,"[token oculto]");
