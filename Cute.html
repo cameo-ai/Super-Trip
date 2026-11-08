@@ -902,6 +902,63 @@ projectFile.addEventListener("change",async()=>{
   }catch(error){status.textContent="No se pudo abrir el proyecto: "+(error.message||error);}
   finally{projectFile.value="";}
 });
+// Recuperación automática del último viaje en este navegador y esta versión.
+// El MP3 no se almacena automáticamente: debe seleccionarse de nuevo por privacidad y cuota.
+const lastTripKey="super-trip-last-cute-v1";
+let lastTripReady=false;
+function rememberLastTrip(){
+  if(!lastTripReady||exporting)return;
+  try{
+    const legs=[...$("legs").children].map(row=>{
+      const [from,to,mode]=legFields(row);
+      return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value};
+    });
+    localStorage.setItem(lastTripKey,JSON.stringify({
+      version:1,legs,duration:durationInput.value,
+      format:selectedFormat,
+      audio:{volume:musicVolume.value,fadeIn:musicFadeIn.value,start:musicStart.value,
+        filename:musicInput.files?.[0]?.name||""}
+    }));
+  }catch(error){console.warn("No se pudo recordar el último viaje.",error);}
+}
+function restoreLastTrip(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(lastTripKey)||"null");
+    if(!saved||saved.version!==1||!Array.isArray(saved.legs)||!saved.legs.length||saved.legs.length>100)return false;
+    const list=$("legs");
+    while(list.children.length>1)list.lastElementChild.remove();
+    const first=saved.legs[0];
+    const fields=legFields(list.firstElementChild);
+    fields[0].value=String(first.origen||"");
+    fields[1].value=String(first.destino||"");
+    fields[2].value=String(first.transporte||"bus");
+    routeKind(list.firstElementChild).value=first.routeKind||"auto";
+    for(const leg of saved.legs.slice(1))addLeg(leg);
+    numberLegs();
+    const duration=Number(saved.duration);
+    if(Number.isFinite(duration)&&duration>=1&&duration<=300)durationInput.value=String(duration);
+    musicVolume.value=String(saved.audio?.volume??80);
+    musicFadeIn.value=String(saved.audio?.fadeIn??2);
+    musicStart.value=String(saved.audio?.start??0);
+    musicVolumeValue.textContent=musicVolume.value+" %";
+    if(formats[saved.format]){
+      selectedFormat=saved.format;
+      for(const button of document.querySelectorAll("[data-format]"))
+        button.setAttribute("aria-pressed",String(button.dataset.format===selectedFormat));
+    }
+    if(saved.audio?.filename)musicStatus.textContent="Último MP3: "+saved.audio.filename+" · selecciónalo nuevamente para reproducirlo.";
+    return true;
+  }catch(error){console.warn("No se pudo recuperar el último viaje.",error);return false;}
+}
+$("journey").addEventListener("input",rememberLastTrip);
+$("journey").addEventListener("change",rememberLastTrip);
+$("legs").addEventListener("click",event=>{if(event.target.closest(".leg-remove"))queueMicrotask(rememberLastTrip);});
+$("add-leg").addEventListener("click",()=>queueMicrotask(rememberLastTrip));
+for(const button of document.querySelectorAll("[data-format]"))
+  button.addEventListener("click",rememberLastTrip);
+for(const input of [musicVolume,musicFadeIn,musicStart])
+  input.addEventListener("input",rememberLastTrip);
+projectFile.addEventListener("change",()=>queueMicrotask(rememberLastTrip));
 seekInput.addEventListener("input",()=>{
   if(!itinerary.length||exporting)return;
   const resume=playing;
@@ -933,7 +990,11 @@ $("journey").addEventListener("submit",event=>{
 reduced.addEventListener("change",()=>{if(!itinerary.length||exporting)return;if(reduced.matches)stop();render(view,elapsed,reduced.matches);});
 $("origin").value=preset.origen;$("destination").value=preset.destino;$("transport").value=preset.transporte;
 for(const leg of extraLegs)addLeg(leg);
-sprites.onload=()=>configure(!reduced.matches);
+const recoveredLastTrip=restoreLastTrip();
+lastTripReady=true;
+rememberLastTrip();
+
+sprites.onload=()=>{configure(!reduced.matches&&!recoveredLastTrip);if(recoveredLastTrip)status.textContent="Último viaje recuperado automáticamente · puedes continuar editándolo.";};
 sprites.onerror=()=>{status.textContent="No se pudieron cargar los vehículos. Vuelve a descargar el archivo.";};
 sprites.src=spriteData;
 </script>
