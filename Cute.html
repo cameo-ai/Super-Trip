@@ -41,6 +41,7 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
 @media(max-width:480px){body{padding:0 0 12px}.stage{border-radius:0}.toolbar,.status,details{margin-inline:9px}}
 .trip-timeline{margin:12px 0 10px;padding:12px 14px;border:1px solid #9b9b9b55;border-radius:14px}.trip-timeline label{display:block;font-size:.88rem;font-weight:650;margin-bottom:8px}.trip-timeline input[type=range]{display:block;width:100%;cursor:pointer;accent-color:#25864b}.trip-timeline input[type=range]:disabled{cursor:not-allowed;opacity:.5}.trip-time{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums;font-size:.83rem;margin-top:5px}
 .music-advanced{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:12px}.music-advanced label{display:flex;flex-direction:column;gap:5px;font-size:.85rem}.music-advanced input[type=range]{width:100%;accent-color:#25864b}.music-advanced input[type=number]{max-width:100%;box-sizing:border-box}
+.export-formats{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:10px 0}.export-formats span{font-weight:650;font-size:.86rem}.export-formats button{font-size:.8rem;padding:7px 9px}.export-formats button[aria-pressed=true]{outline:2px solid #25864b;outline-offset:1px}
 </style>
 </head>
 <body>
@@ -48,12 +49,22 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
   <div class="toolbar">
     <button id="play" type="button" disabled>Reproducir</button>
     <button id="restart" type="button" disabled>Repetir</button>
+    <button id="save-project" type="button">Guardar proyecto</button>
+    <button id="load-project" type="button">Abrir proyecto</button>
+    <input id="project-file" type="file" accept=".json,application/json" hidden>
     <button id="export" class="primary" type="button" disabled>Descargar video</button>
   </div>
   <div class="trip-timeline" aria-label="Línea de tiempo del video">
     <label for="trip-seek">Línea de tiempo · arrastra para revisar el viaje</label>
     <input id="trip-seek" type="range" min="0" max="30000" step="50" value="0" disabled aria-label="Posición del video">
     <div class="trip-time"><output id="trip-current" for="trip-seek">00:00</output><span id="trip-total">00:30</span></div>
+  </div>
+  <div class="export-formats" aria-label="Formato para redes sociales">
+    <span>Exportar para:</span>
+    <button type="button" data-format="instagram" aria-pressed="true">Instagram · 9:16</button>
+    <button type="button" data-format="tiktok" aria-pressed="false">TikTok · 9:16</button>
+    <button type="button" data-format="facebook" aria-pressed="false">Facebook · 16:9</button>
+    <button type="button" data-format="whatsapp" aria-pressed="false">WhatsApp · 1:1</button>
   </div>
   <p id="status" class="status" role="status">Preparando los vehículos…</p>
   <noscript>Descarga y abre el HTML directamente en tu navegador con JavaScript habilitado.</noscript>
@@ -241,6 +252,16 @@ const countryNames=[["CHILE",[-71.8,-28]],["ARGENTINA",[-64.2,-39]],["BRASIL",[-
 const scene=$("scene"), view=scene.getContext("2d");
 const playButton=$("play"), restartButton=$("restart"), exportButton=$("export"), status=$("status");
 const reduced=matchMedia("(prefers-reduced-motion: reduce)");
+const formats={instagram:[1080,1920],tiktok:[1080,1920],facebook:[1920,1080],whatsapp:[1080,1080]};
+let selectedFormat="instagram";
+for(const button of document.querySelectorAll("[data-format]")){
+  button.addEventListener("click",()=>{
+    if(exporting)return;
+    selectedFormat=button.dataset.format;
+    for(const item of document.querySelectorAll("[data-format]"))item.setAttribute("aria-pressed",String(item===button));
+  });
+}
+
 const seekInput=$("trip-seek"),seekCurrent=$("trip-current"),seekTotal=$("trip-total");
 const timeLabel=ms=>{const seconds=Math.floor(Math.max(0,ms)/1000);return String(Math.floor(seconds/60)).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");};
 function syncTimeline(){
@@ -699,10 +720,21 @@ async function download(){
   stop();exporting=true;controls();
   let stream, recorder, captureFrame=0, timeout=0, onVisibility;
   const canvas=document.createElement("canvas");
-  canvas.width=1080;canvas.height=1920;
+  [canvas.width,canvas.height]=formats[selectedFormat];
   try{
     const ctx=canvas.getContext("2d");
-    render(ctx,0);
+    const art=document.createElement("canvas");art.width=1080;art.height=1920;
+    const artCtx=art.getContext("2d");
+    const paint=ms=>{
+      render(artCtx,ms);
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.fillStyle="#dff5e8";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      const scale=Math.min(canvas.width/art.width,canvas.height/art.height);
+      const w=art.width*scale,h=art.height*scale;
+      ctx.drawImage(art,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
+    };
+    paint(0);
     stream=canvas.captureStream(30);
     const audioTarget=musicBuffer?audioContext.createMediaStreamDestination():null;
     if(audioTarget){
@@ -728,7 +760,7 @@ async function download(){
           if(audioTarget)startMusic(0,audioTarget);
         }
         const ms=Math.min(totalDuration(),t-start);
-        render(ctx,ms);
+        paint(ms);
         view.setTransform(1,0,0,1,0,0);
         view.drawImage(canvas,0,0,scene.width,scene.height);
         status.textContent=`Grabando video… ${Math.floor(ms/totalDuration()*100)} %`;
@@ -745,7 +777,7 @@ async function download(){
     const url=URL.createObjectURL(blob);
     const link=document.createElement("a");link.href=url;link.download=`Ruta-${name||"cute"}.${extension}`;
     document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
-    status.textContent=extension==="mp4"?"Video MP4 descargado · 1080 × 1920":"Video WebM descargado · Convierte a MP4 si tu red social lo requiere.";
+    status.textContent=`Video ${extension.toUpperCase()} descargado · ${canvas.width} × ${canvas.height} · ${selectedFormat}`;
     elapsed=totalDuration();render(view,elapsed,reduced.matches);
   }catch(error){
     status.textContent=error.message||"No se pudo generar el video.";
@@ -759,6 +791,80 @@ async function download(){
   }
 }
 
+const projectFile=$("project-file");
+const projectSave=$("save-project"),projectLoad=$("load-project");
+const downloadBlob=(blob,filename)=>{
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement("a");
+  link.href=url;link.download=filename;document.body.append(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
+};
+projectSave.addEventListener("click",async()=>{
+  if(exporting)return;
+  const rows=[...$("legs").children].map(row=>{
+    const [from,to,mode]=legFields(row);
+    return {origen:from.value,destino:to.value,transporte:mode.value};
+  });
+  const musicFile=musicInput.files?.[0];
+  try{
+    status.textContent="Preparando archivo del proyecto…";
+    let music=null;
+    if(musicFile){
+      // JSON autocontenido: incluye el MP3 original, sin subirlo a servidores.
+      const bytes=new Uint8Array(await musicFile.arrayBuffer());
+      let binary="";
+      for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+      music={name:musicFile.name,data:btoa(binary)};
+    }
+    const project={type:"super-trip-project",version:1,theme:"cute",legs:rows,
+      duration:Number(durationInput.value),format:selectedFormat,
+      audio:{volume:Number(musicVolume.value),fadeIn:Number(musicFadeIn.value),start:Number(musicStart.value),music}};
+    const blob=new Blob([JSON.stringify(project)],{type:"application/json"});
+    downloadBlob(blob,"Super-Trip-Cute-proyecto.json");
+    status.textContent="Proyecto guardado · incluye rutas, ajustes y MP3 si estaba seleccionado.";
+  }catch(error){status.textContent="No se pudo guardar el proyecto: "+(error.message||error);}
+});
+projectLoad.addEventListener("click",()=>{if(!exporting)projectFile.click();});
+projectFile.addEventListener("change",async()=>{
+  const file=projectFile.files?.[0];if(!file||exporting)return;
+  try{
+    const data=JSON.parse(await file.text());
+    if(data.type!=="super-trip-project"||data.version!==1||!Array.isArray(data.legs)||!data.legs.length||data.legs.length>100)
+      throw new Error("Archivo de proyecto no válido.");
+    if(!data.legs.every(leg=>["avion","bus","tren","automovil","barco"].includes(leg.transporte)&&typeof leg.origen==="string"&&typeof leg.destino==="string"))
+      throw new Error("El proyecto contiene tramos inválidos.");
+    if(!Number.isFinite(data.duration)||data.duration<1||data.duration>300)throw new Error("Duración no válida.");
+    stop();
+    const list=$("legs");
+    while(list.children.length>1)list.lastElementChild.remove();
+    const first=legFields(list.firstElementChild);
+    first[0].value=data.legs[0].origen;first[1].value=data.legs[0].destino;first[2].value=data.legs[0].transporte;
+    for(const leg of data.legs.slice(1))addLeg(leg);
+    numberLegs();
+    durationInput.value=String(data.duration);
+    musicVolume.value=String(Math.max(0,Math.min(100,Number(data.audio?.volume??80))));
+    musicFadeIn.value=String(Math.max(0,Math.min(30,Number(data.audio?.fadeIn??2))));
+    musicStart.value=String(Math.max(0,Math.min(300,Number(data.audio?.start??0))));
+    musicVolumeValue.textContent=musicVolume.value+" %";
+    const selected=formats[data.format]?data.format:"instagram";
+    document.querySelector('[data-format="'+selected+'"]').click();
+    if(data.audio?.music?.data){
+      const binary=atob(data.audio.music.data),bytes=new Uint8Array(binary.length);
+      for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+      const mp3=new File([bytes],data.audio.music.name||"musica.mp3",{type:"audio/mpeg"});
+      const transfer=new DataTransfer();transfer.items.add(mp3);
+      musicInput.files=transfer.files;
+      musicInput.dispatchEvent(new Event("change"));
+    }else{
+      musicInput.value="";
+      musicInput.dispatchEvent(new Event("change"));
+    }
+    $("editor").open=true;
+    if(!configure(false))status.textContent+=" · Revisa los tramos no disponibles en esta versión.";
+    else status.textContent="Proyecto recuperado · listo para editar o reproducir.";
+  }catch(error){status.textContent="No se pudo abrir el proyecto: "+(error.message||error);}
+  finally{projectFile.value="";}
+});
 seekInput.addEventListener("input",()=>{
   if(!itinerary.length||exporting)return;
   const resume=playing;
