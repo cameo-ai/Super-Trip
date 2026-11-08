@@ -1,21 +1,22 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Super-Trip · Prueba de terreno 3D</title>
-<link href="https://cesium.com/downloads/cesiumjs/releases/1.133/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<link href="./vendor/Cesium/Widgets/widgets.css" rel="stylesheet">
 <style>
 *{box-sizing:border-box}body{margin:0;background:#071327;color:#f5f8ff;font:14px system-ui,Arial}#map{position:absolute;inset:0}.toolbar{position:absolute;top:14px;left:14px;right:14px;max-width:510px;background:#0b1730ed;padding:17px;border:1px solid #3b547b;border-radius:16px;box-shadow:0 12px 35px #0007}.toolbar h1{font-size:18px;margin:0 0 5px}.toolbar p{font-size:12px;color:#b4c5dd;margin:0 0 12px}.fields{display:flex;gap:7px;flex-wrap:wrap}input,button,select{font:inherit;border-radius:9px;border:1px solid #506b90;padding:10px;background:#152846;color:white}input{flex:1;min-width:170px}button{cursor:pointer;background:#225bba;border-color:#3479e0}button:disabled{opacity:.5;cursor:default}.stages{display:flex;gap:5px;margin-top:12px}.stages button{flex:1;font-size:12px;padding:9px 3px;background:#1a2c48}.stages button[aria-pressed=true]{background:#1760ba;outline:2px solid #77b7ff}.control{display:flex;align-items:center;gap:8px;margin-top:12px}.control input{min-width:0;width:100%;padding:0;accent-color:#ffbd66}#status{margin-top:9px;font-size:12px;color:#c9d7e8}.tint{position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light;opacity:0;transition:background 450ms,opacity 450ms}.night{position:absolute;inset:0;pointer-events:none;background:#071630;opacity:0;transition:opacity 450ms}.credit{position:absolute;right:10px;bottom:8px;font-size:10px;color:white;background:#071327aa;padding:4px 7px;border-radius:5px}#map .cesium-viewer-bottom{bottom:25px}@media(max-width:550px){.toolbar{top:8px;left:8px;right:8px;padding:12px}.toolbar h1{font-size:15px}.stages button{font-size:10px}}
 </style></head><body>
 <div id="map"></div><div id="night" class="night"></div><div id="tint" class="tint"></div>
-<section class="toolbar"><h1>Super-Trip · Terreno 3D</h1><p>Prueba aislada de relieve real y cinco estados de iluminación. No modifica Cute ni Formal.</p>
+<section class="toolbar"><h1>Super-Trip · Terreno 3D</h1><p>Prueba aislada de relieve real y cinco estados de iluminación. Requiere preparar Cesium local con Preparar-Cesium-Local.ps1.</p>
 <div class="fields"><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Token Cesium ion (solo en esta sesión)"><button id="start">Cargar terreno 3D</button></div>
 <div class="stages" role="group" aria-label="Iluminación"><button data-stage="0">Amanecer</button><button data-stage="1">Mañana</button><button data-stage="2" aria-pressed="true">Día</button><button data-stage="3">Tarde</button><button data-stage="4">Noche</button></div>
 <div class="control"><label for="phase">Transición</label><input id="phase" type="range" min="0" max="100" value="50" step="1"><output id="phase-label">Día</output></div>
 <div class="fields" style="margin-top:9px"><button id="flight" disabled>Animar Santiago → Río</button><button id="reset" disabled>Vista general</button></div>
 <div class="fields" style="margin-top:8px"><button id="raw" disabled>1 · Sin filtros</button><button id="flat" disabled>2 · Terreno plano</button><button id="osm" disabled>3 · Mapa OSM</button></div>
-<div id="status" role="status">Introduce un token de Cesium ion para habilitar el relieve real. No se guarda ni se envía a GitHub.</div>
+<div id="status" role="status">Cesium se carga localmente. Introduce el token para solicitar terreno e imágenes; no se guarda ni se envía a GitHub.</div>
 <div id="diagnostics" style="margin-top:8px;font-size:11px;color:#f4dca8;white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">Diagnóstico: sin iniciar.</div></section>
 <div class="credit">Prototipo técnico · Imágenes y terreno según proveedor Cesium ion</div>
-<script src="https://cesium.com/downloads/cesiumjs/releases/1.133/Build/Cesium/Cesium.js"></script>
+<script>window.CESIUM_BASE_URL="./vendor/Cesium/";</script>
+<script src="./vendor/Cesium/Cesium.js"></script>
 <script>
 "use strict";
 const $=id=>document.getElementById(id),labels=["Amanecer","Mañana","Día","Tarde","Noche"];
