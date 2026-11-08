@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Ruta aérea · Chile a Brasil</title>
+<style>
+  * { box-sizing: border-box; }
+  :root { color-scheme: dark; font-family: Poppins, "Century Gothic", "Segoe UI", system-ui, sans-serif; }
+  body {
+    margin: 0; min-height: 100svh; display: grid; place-items: center;
+    background: #060c17; color: #f7f9ff;
+  }
+  .reel {
+    position: relative; isolation: isolate; overflow: hidden; aspect-ratio: 9 / 16;
+    width: min(100vw, 56.25svh, 520px); container-type: inline-size;
+    background: #0a1428; box-shadow: 0 0 70px #0009;
+  }
+  .mapa { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .cabecera { position: absolute; inset: 5.5% 5% auto; text-align: center; }
+  .sobrelinea {
+    margin: 0 0 2cqw; color: #ff9f1c; font-size: 2.8cqw;
+    font-weight: 800; letter-spacing: .42em; padding-left: .42em;
+  }
+  h1 { margin: 0; font-size: 11.1cqw; line-height: 1.02; letter-spacing: -.055em; font-weight: 850; }
+  .titulo-avion { display: inline-block; font-size: .72em; margin-inline: .09em; vertical-align: .08em; }
+  .trayecto {
+    display: flex; justify-content: center; align-items: center; gap: 2.2cqw;
+    margin: 2.9cqw 0 0; font-size: 2.6cqw; letter-spacing: .2em; color: #a7b6ce;
+    font-weight: 700; text-transform: uppercase;
+  }
+  .trayecto::before, .trayecto::after { content: ""; width: 7cqw; height: 1px; background: #8da5cb54; }
+  .subtitulos {
+    position: absolute; inset: auto 4% 27.2%; display: flex; justify-content: center; margin: 0;
+  }
+  .subtitulos span {
+    border: 1px solid #a6b6d02b; background: #252c3b; border-radius: 2.3cqw;
+    padding: 2.1cqw 3.8cqw; color: #fff; font-size: 3.65cqw; font-weight: 750;
+    text-align: center; box-shadow: 0 6px 20px #03081780;
+  }
+  .pie { position: absolute; inset: auto 5% 3.5%; }
+  .datos {
+    border: 1px solid #a6bde44d; border-radius: 5.2cqw; padding: 4.1cqw;
+    background: linear-gradient(140deg, #23334edc, #101d33ea);
+    box-shadow: inset 0 1px 0 #ffffff0e, 0 10px 30px #02060f61;
+    backdrop-filter: blur(14px);
+  }
+  dl { display: grid; grid-template-columns: 1fr 1fr; margin: 0 0 3.4cqw; }
+  .dato { min-width: 0; padding-left: 1cqw; }
+  .dato + .dato { padding-left: 4cqw; border-left: 1px solid #afc1df3d; }
+  dt { font-size: 2.45cqw; font-weight: 750; color: #b8c5d9; letter-spacing: .14em; }
+  dd { margin: .65cqw 0 0; font-size: 6.8cqw; font-weight: 850; letter-spacing: -.055em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .progreso { display: block; width: 100%; height: 1cqw; appearance: none; border: 0; border-radius: 2cqw; overflow: hidden; background: #a4bce035; }
+  .progreso::-webkit-progress-bar { background: #a4bce035; border-radius: 2cqw; }
+  .progreso::-webkit-progress-value { background: linear-gradient(90deg, #ec661f, #ffbd55); border-radius: 2cqw; }
+  .progreso::-moz-progress-bar { background: linear-gradient(90deg, #ec661f, #ffbd55); border-radius: 2cqw; }
+  .controles { display: flex; justify-content: center; gap: 2.4cqw; margin-top: 2.6cqw; }
+  button {
+    display: inline-flex; align-items: center; justify-content: center; gap: 1.5cqw;
+    padding: 1.55cqw 3.6cqw; min-height: 32px; border: 1px solid #a7b8d444;
+    border-radius: 999px; color: #f2f6ff; background: #182640; font: inherit;
+    font-size: max(11px, 2.9cqw); font-weight: 700; cursor: pointer;
+  }
+  button:hover { background: #2a3d5c; }
+  button:focus-visible { outline: 2px solid #ff9f1c; outline-offset: 2px; }
+  button:disabled { opacity: .55; cursor: default; }
+  button svg { width: 3.1cqw; height: 3.1cqw; fill: currentColor; }
+  @media (max-height: 540px) and (orientation: landscape) {
+    .reel { width: min(100vw, 330px); }
+  }
+</style>
+</head>
+<body>
+<main class="reel" aria-labelledby="titulo">
+  <svg class="mapa" viewBox="0 0 360 640" role="img" aria-labelledby="mapa-titulo mapa-descripcion">
+    <title id="mapa-titulo">Ruta ilustrada de Santiago a Río de Janeiro</title>
+    <desc id="mapa-descripcion">Mapa estilizado de Sudamérica con un avión que avanza de Chile a Brasil.</desc>
+    <defs>
+      <radialGradient id="oceano" cx="54%" cy="44%" r="70%">
+        <stop stop-color="#142743"/><stop offset=".65" stop-color="#0a1428"/><stop offset="1" stop-color="#07101f"/>
+      </radialGradient>
+      <linearGradient id="tierra" x2="1" y2="1">
+        <stop stop-color="#233d5f"/><stop offset=".55" stop-color="#1b3151"/><stop offset="1" stop-color="#172844"/>
+      </linearGradient>
+      <linearGradient id="estela" gradientUnits="userSpaceOnUse" x1="104" y1="398" x2="257" y2="338">
+        <stop stop-color="#dc6526" stop-opacity=".45"/><stop offset=".46" stop-color="#ff9f1c"/><stop offset="1" stop-color="#ffcc69"/>
+      </linearGradient>
+      <linearGradient id="fundido" x2="0" y2="1">
+        <stop stop-color="#0a1428" stop-opacity=".98"/><stop offset=".20" stop-color="#0a1428" stop-opacity="0"/>
+        <stop offset=".69" stop-color="#0a1428" stop-opacity="0"/><stop offset=".94" stop-color="#0a1428"/>
+      </linearGradient>
+      <pattern id="cuadricula" width="26" height="26" patternUnits="userSpaceOnUse">
+        <path d="M26 0H0V26" fill="none" stroke="#7397c0" stroke-opacity=".13" stroke-width=".65"/>
+      </pattern>
+      <filter id="brillo-costa" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="3"/>
+      </filter>
+      <filter id="brillo-ruta" x="-25%" y="-45%" width="150%" height="190%">
+        <feGaussianBlur stdDeviation="2.6"/>
+      </filter>
+      <path id="continente"/>
+      <path id="arco" d="M104 395 C141 349 197 304 257 337"/>
+    </defs>
+    <rect width="360" height="640" fill="url(#oceano)"/>
+    <rect y="108" width="360" height="445" fill="url(#cuadricula)"/>
+    <g id="camara">
+      <use href="#continente" fill="none" stroke="#73b3eb" stroke-opacity=".32" stroke-width="4" filter="url(#brillo-costa)"/>
+      <use href="#continente" fill="url(#tierra)"/>
+      <g id="ciudades" font-family="Poppins, Segoe UI, sans-serif" font-size="8.4" font-weight="600" fill="#afbed4"
+         stroke="#142540" stroke-width="2.5" stroke-linejoin="round" paint-order="stroke"/>
+      <use href="#arco" fill="none" stroke="#a6b2c6" stroke-width="1.5" stroke-dasharray="2 5" stroke-linecap="round" opacity=".62"/>
+      <use id="halo-ruta" href="#arco" fill="none" stroke="#ff8b1a" stroke-width="5.5" filter="url(#brillo-ruta)" opacity=".78"/>
+      <use id="ruta" href="#arco" fill="none" stroke="url(#estela)" stroke-width="2.7" stroke-linecap="round"/>
+      <g transform="translate(104 395)">
+        <circle id="pulso" r="9" fill="none" stroke="#ff9f1c" stroke-width="1"/>
+        <circle r="6" fill="#142440" stroke="#ff9f1c" stroke-width="1.5"/>
+        <circle r="2.4" fill="#ffd28a"/>
+      </g>
+      <g transform="translate(257 337)">
+        <circle id="onda-uno" r="0" fill="none" stroke="#ff9f1c" stroke-width="1.4" opacity="0"/>
+        <circle id="onda-dos" r="0" fill="none" stroke="#ffc264" stroke-width="1.15" opacity="0"/>
+        <circle id="destino" r="4.4" fill="#142440" stroke="#bcc9dc" stroke-width="1.2"/>
+      </g>
+      <g id="avion" fill="#fff" stroke="#0a1428" stroke-width=".6" stroke-linejoin="round">
+        <path d="M0-12c1.25 0 1.85 1.6 1.85 3.35v5.1L10 2v2.35L1.85 1.6v5.1l2.55 2V10L0 8.85-4.4 10V8.7l2.55-2V1.6L-10 4.35V2l8.15-5.55v-5.1C-1.85-10.4-1.25-12 0-12Z"/>
+      </g>
+    </g>
+    <rect width="360" height="640" fill="url(#fundido)" pointer-events="none"/>
+  </svg>
+
+  <header class="cabecera">
+    <p class="sobrelinea">RUTA AÉREA</p>
+    <h1 id="titulo" aria-label="Chile a Brasil">Chile <span class="titulo-avion" aria-hidden="true">✈︎</span> Brasil</h1>
+    <p class="trayecto">Santiago · Río de Janeiro</p>
+  </header>
+
+  <p class="subtitulos" aria-live="polite"><span id="frase">Despegamos de Santiago…</span></p>
+
+  <section class="pie" aria-label="Datos y controles del vuelo">
+    <div class="datos">
+      <dl>
+        <div class="dato"><dt>DISTANCIA</dt><dd id="distancia">0 km</dd></div>
+        <div class="dato"><dt>TIEMPO DE VUELO</dt><dd id="tiempo">0 h 00 min</dd></div>
+      </dl>
+      <progress class="progreso" id="progreso" max="1" value="0" aria-label="Progreso del vuelo"></progress>
+    </div>
+    <div class="controles">
+      <button id="pausa" type="button">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path id="icono-pausa" d="M4 2h3v12H4zM9 2h3v12H9z"/></svg>
+        <span id="texto-pausa">Pausar</span>
+      </button>
+      <button id="repetir" type="button">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2a6 6 0 1 1-5.7 8h1.7A4.4 4.4 0 1 0 4.8 5H7v1.6H2V1.5h1.6v2.3A6 6 0 0 1 8 2z"/></svg>
+        Repetir
+      </button>
+    </div>
+  </section>
+</main>
+
+<script>
+  const svgNS = "http://www.w3.org/2000/svg";
+  const byId = (id) => document.getElementById(id);
+  const project = (lon, lat) => [40 + (lon + 82) * 5.6, 140 + (13 - lat) * 5.5];
+
+  // Contorno esquemático para mantener el mapa vectorial y autocontenido.
+  const coast = [
+    [-79,9],[-77.1,8],[-77.3,6.5],[-77.5,4],[-78.8,1.7],[-80.3,.6],[-80.6,-1.8],[-79.8,-3.4],
+    [-81.2,-5.2],[-79.8,-7.8],[-78.1,-9.5],[-77,-12.1],[-76.1,-14.4],[-74.3,-15.6],[-72.1,-17.1],
+    [-70.4,-18.2],[-70.2,-21],[-70.5,-23.7],[-70.6,-27],[-71.6,-30],[-71.5,-33],[-72.4,-36],
+    [-73.7,-39.3],[-73.5,-41.8],[-74.6,-43.8],[-74.4,-46.4],[-75,-49.3],[-73.8,-51.4],[-73.1,-53.2],
+    [-71.4,-54.1],[-69.5,-52.4],[-68.2,-50.5],[-66.2,-48],[-67,-46.6],[-65.6,-45],[-65.2,-42.8],
+    [-63.8,-41.2],[-62.3,-40.3],[-62.1,-38.9],[-58.7,-38.4],[-57,-37],[-56.4,-35.8],[-58.2,-34.6],
+    [-55.8,-34.9],[-54.7,-34.5],[-53.2,-33.7],[-52.2,-32],[-50.9,-30.4],[-49,-28.7],[-48.6,-26.5],
+    [-48.1,-25.5],[-46.3,-24],[-44.5,-23.1],[-43.1,-22.9],[-41.5,-22],[-40.9,-20.1],[-39.3,-18.2],
+    [-39.1,-16.4],[-38.9,-14.4],[-38.4,-12.9],[-37.3,-11.4],[-35.4,-8.7],[-34.8,-7.1],[-35.3,-5.5],
+    [-36.6,-5.1],[-38,-4.8],[-39.5,-3],[-41.6,-2.8],[-43.7,-2.5],[-45,-1.4],[-47,-.8],
+    [-49.2,-.3],[-50.9,2.1],[-51.9,4.1],[-53.3,5.5],[-55.4,5.9],[-57.7,6.1],[-59.7,8.3],
+    [-61.2,9.9],[-62.4,10.6],[-64,10.5],[-65.8,10.2],[-67.9,10.5],[-70,11.4],[-71.1,11.7],
+    [-71.7,10.8],[-72.1,11.2],[-71.3,12.4],[-73,12],[-74.9,11.2],[-76.2,9.4],[-77.5,8.6]
+  ];
+  const pathFrom = (points) => "M" + points.map(([lon, lat]) => project(lon, lat).map(n => n.toFixed(1)).join(" ")).join("L") + "Z";
+  byId("continente").setAttribute("d", pathFrom(coast) + pathFrom([[-70.5,-53.6],[-68.6,-54],[-66.5,-55],[-69.3,-55.1]]));
+
+  const cities = [
+    { name: "Santiago", x: 104, y: 395, dx: -9, dy: -7, anchor: "end" },
+    { name: "Buenos Aires", coords: [-58.38, -34.6], dx: 7, dy: 10 },
+    { name: "Asunción", coords: [-57.63, -25.28], dx: 7, dy: 12 },
+    { name: "São Paulo", coords: [-46.63, -23.55], dx: 7, dy: 13 },
+    { name: "Río de Janeiro", x: 257, y: 337, dx: 8, dy: -8 }
+  ];
+  for (const city of cities) {
+    const [x, y] = city.coords ? project(...city.coords) : [city.x, city.y];
+    if (city.coords) {
+      const dot = document.createElementNS(svgNS, "circle");
+      dot.setAttribute("cx", x); dot.setAttribute("cy", y); dot.setAttribute("r", 2);
+      dot.setAttribute("fill", "#9daec8"); dot.setAttribute("stroke", "none");
+      byId("ciudades").append(dot);
+    }
+    const label = document.createElementNS(svgNS, "text");
+    label.setAttribute("x", x + city.dx); label.setAttribute("y", y + city.dy);
+    label.setAttribute("text-anchor", city.anchor || "start");
+    label.textContent = city.name;
+    byId("ciudades").append(label);
+  }
+
+  const total = 12000;
+  const arrival = 11100;
+  const route = byId("arco");
+  const length = route.getTotalLength();
+  const plane = byId("avion");
+  const camera = byId("camara");
+  const trail = [byId("ruta"), byId("halo-ruta")];
+  const progress = byId("progreso");
+  const distance = byId("distancia");
+  const time = byId("tiempo");
+  const subtitle = byId("frase");
+  const pause = byId("pausa");
+  const pauseText = byId("texto-pausa");
+  const pauseIcon = byId("icono-pausa");
+  const motion = matchMedia("(prefers-reduced-motion: reduce)");
+  const number = new Intl.NumberFormat("es-CL", { useGrouping: "always" });
+  const captions = [
+    [0, "Despegamos de Santiago…"],
+    [2700, "Cruzando los Andes…"],
+    [5600, "Rumbo a Brasil…"],
+    [8600, "Llegando a Río…"],
+    [arrival, "¡Llegamos a Río de Janeiro!"]
+  ];
+
+  let elapsed = 0;
+  let previous = null;
+  let frame = 0;
+  let running = false;
+
+  const clamp = (n) => Math.min(1, Math.max(0, n));
+  const ease = (n) => n * n * (3 - 2 * n);
+  const set = (node, attr, value) => node.setAttribute(attr, value);
+
+  function render(ms) {
+    const p = ease(clamp(ms / arrival));
+    const visual = motion.matches && p < 1 ? Math.floor(p * 4) / 4 : p;
+    const traveled = visual * length;
+    const point = route.getPointAtLength(traveled);
+    const ahead = route.getPointAtLength(Math.min(length, traveled + 1));
+    const behind = route.getPointAtLength(Math.max(0, traveled - 1));
+    const angle = Math.atan2(ahead.y - behind.y, ahead.x - behind.x) * 180 / Math.PI + 90;
+    const atDestination = ms >= arrival;
+    const after = Math.max(0, ms - arrival);
+
+    for (const layer of trail) {
+      set(layer, "stroke-dasharray", `${Math.max(.01, traveled)} ${length + 1}`);
+      layer.style.visibility = visual ? "visible" : "hidden";
+    }
+    set(plane, "transform", `translate(${point.x} ${point.y}) rotate(${angle})`);
+    set(plane, "opacity", motion.matches ? Number(!atDestination) : 1 - clamp(after / 620));
+
+    const zoom = motion.matches ? 1 : 1 + .17 * Math.sin(Math.PI * .83 * p);
+    const panX = motion.matches ? 0 : (180 - point.x) * .15 * Math.sin(Math.PI * p);
+    const panY = motion.matches ? 0 : (360 - point.y) * .12 * Math.sin(Math.PI * p);
+    set(camera, "transform", `translate(${180 + panX} ${360 + panY}) scale(${zoom}) translate(-180 -360)`);
+
+    const pulse = (ms % 1700) / 1700;
+    set(byId("pulso"), "r", 7 + pulse * 10);
+    set(byId("pulso"), "opacity", motion.matches || atDestination ? 0 : .62 * (1 - pulse));
+    for (const [id, delay] of [["onda-uno", 0], ["onda-dos", 125]]) {
+      const wave = byId(id);
+      const phase = clamp((after - delay) / 740);
+      set(wave, "r", 5 + phase * 19);
+      set(wave, "opacity", !motion.matches && atDestination && after >= delay ? .85 * (1 - phase) : 0);
+    }
+    set(byId("destino"), "stroke", atDestination ? "#ff9f1c" : "#bcc9dc");
+    set(byId("destino"), "fill", atDestination ? "#ffb94f" : "#142440");
+
+    const mins = Math.round(255 * p);
+    distance.textContent = `${number.format(Math.round(3000 * p))} km`;
+    time.textContent = `${Math.floor(mins / 60)} h ${String(mins % 60).padStart(2, "0")} min`;
+    progress.value = p;
+    const caption = captions.findLast(([start]) => ms >= start)[1];
+    if (subtitle.textContent !== caption) subtitle.textContent = caption;
+  }
+
+  function syncControls() {
+    pause.disabled = elapsed >= total;
+    pauseText.textContent = running ? "Pausar" : elapsed === 0 ? "Reproducir" : "Continuar";
+    set(pauseIcon, "d", running ? "M4 2h3v12H4zM9 2h3v12H9z" : "M4 2l10 6-10 6z");
+  }
+
+  function tick(timestamp) {
+    if (!running) return;
+    if (previous !== null) elapsed = Math.min(total, elapsed + timestamp - previous);
+    previous = timestamp;
+    render(elapsed);
+    if (elapsed < total) frame = requestAnimationFrame(tick);
+    else stop();
+  }
+
+  function stop() {
+    running = false;
+    previous = null;
+    cancelAnimationFrame(frame);
+    syncControls();
+  }
+
+  function play() {
+    if (running || elapsed >= total) return;
+    running = true;
+    previous = null;
+    syncControls();
+    frame = requestAnimationFrame(tick);
+  }
+
+  pause.addEventListener("click", () => running ? stop() : play());
+  byId("repetir").addEventListener("click", () => {
+    stop();
+    elapsed = 0;
+    render(elapsed);
+    play();
+  });
+
+  motion.addEventListener("change", () => {
+    if (motion.matches) stop();
+    render(elapsed);
+  });
+
+  render(0);
+  syncControls();
+  if (!motion.matches) play();
+</script>
+</body>
+</html>
