@@ -34,9 +34,24 @@ const cities=[{name:"Santiago",lon:-70.6693,lat:-33.4489},{name:"Río de Janeiro
 function positions(){return cities.map(c=>Cesium.Cartesian3.fromDegrees(c.lon,c.lat,13000))}
 async function start(){const token=$("token").value.trim();if(!token){$("status").textContent="Se necesita un token válido para solicitar terreno 3D.";return;}
  $("start").disabled=true;$("status").textContent="Cargando terreno y texturas...";
- try{Cesium.Ion.defaultAccessToken=token;
+ try{
+ // Comprobar únicamente el estado HTTP. Nunca mostrar ni registrar el token.
+ const probe=await fetch("https://api.cesium.com/v1/assets/1/endpoint",{
+   headers:{"Authorization":"Bearer "+token},cache:"no-store"
+ });
+ if(!probe.ok){
+   const advice=probe.status===404
+     ?"El recurso Cesium World Terrain (asset 1) no está disponible para este token. En Cesium ion, edita Trip y autoriza el recurso Cesium World Terrain en Resources; revisa también que assets:read esté activo."
+     :probe.status===401||probe.status===403
+     ?"El token no tiene acceso al terreno. Comprueba assets:read y los recursos autorizados en Cesium ion."
+     :"Cesium ion respondió HTTP "+probe.status+". Comprueba la conexión y vuelve a intentarlo.";
+   throw new Error("Comprobación del terreno (HTTP "+probe.status+"): "+advice);
+ }
+ Cesium.Ion.defaultAccessToken=token;
  const terrain=await Cesium.createWorldTerrainAsync();
- viewer=new Cesium.Viewer("map",{terrainProvider:terrain,animation:false,timeline:false,baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,fullscreenButton:false,infoBox:false,selectionIndicator:false});
+ // Evitar la dependencia del recurso ion de imágenes (asset 2): OSM es independiente.
+ const imagery=new Cesium.ImageryLayer(new Cesium.OpenStreetMapImageryProvider({url:"https://tile.openstreetmap.org/"}));
+ viewer=new Cesium.Viewer("map",{terrainProvider:terrain,baseLayer:imagery,animation:false,timeline:false,baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,fullscreenButton:false,infoBox:false,selectionIndicator:false});
  viewer.scene.globe.depthTestAgainstTerrain=false;
  const p=positions();cities.forEach((c,i)=>viewer.entities.add({position:p[i],point:{pixelSize:12,color:Cesium.Color.fromCssColorString("#ff694d"),outlineColor:Cesium.Color.WHITE,outlineWidth:2},label:{text:c.name,font:"bold 16px sans-serif",fillColor:Cesium.Color.WHITE,showBackground:true,backgroundColor:Cesium.Color.fromCssColorString("#09172c"),pixelOffset:new Cesium.Cartesian2(0,22)}}));
  const coords=[];for(let i=0;i<=100;i++){let t=i/100;coords.push(Cesium.Cartesian3.fromDegrees(interpolate(cities[0].lon,cities[1].lon,t),interpolate(cities[0].lat,cities[1].lat,t),12000+Math.sin(Math.PI*t)*210000))}
@@ -44,7 +59,9 @@ async function start(){const token=$("token").value.trim();if(!token){$("status"
  viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(-58,-28,4200000),duration:2.5});
  $("flight").disabled=false;$("reset").disabled=false;$("token").value="";$("status").textContent="Terreno 3D cargado. El token permanece solo en memoria durante esta sesión.";
  applyPhase($("phase").value);
- }catch(err){$("status").textContent="No se pudo cargar Cesium ion o el terreno: "+(err?.message||String(err));$("start").disabled=false;}}
+ }catch(err){const message=err?.message||String(err);
+ $("status").textContent="No se pudo cargar el terreno: "+message.replaceAll(token,"[token oculto]");
+ $("start").disabled=false;}}
 $("start").addEventListener("click",start);
 $("reset").addEventListener("click",()=>{cancelAnimationFrame(animationId);viewer?.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(-58,-28,4200000),duration:2})});
 $("flight").addEventListener("click",()=>{if(!viewer)return;cancelAnimationFrame(animationId);const startTime=performance.now(),duration=16000;
