@@ -82,11 +82,11 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
           <input id="video-duration" type="number" min="1" max="300" step="1" required value="30">
         </label>
         <button id="apply-duration" type="button" disabled>Aplicar duración</button>
-        <label>Iluminación <select id="day-night"><option value="day">Día</option><option value="dawn">Amanecer</option><option value="morning">Mañana</option><option value="afternoon">Tarde</option><option value="sunset">Atardecer</option><option value="night">Noche</option><option value="cycle">Día y noche</option><option value="manual">Barra manual</option></select></label>
+        <label>Iluminación <select id="day-night"><option value="day">Día</option><option value="dawn">Amanecer</option><option value="morning">Mañana</option><option value="afternoon">Tarde</option><option value="sunset">Tarde</option><option value="night">Noche</option><option value="cycle">Día y noche</option><option value="manual">Barra manual</option></select></label>
         <div class="solar-control" style="grid-column:1/-1;padding:12px;border-radius:12px;background:#e8f3f6">
           <label for="solar-position" style="display:block;font-weight:700">Iluminación del mapa · <output id="solar-label">Día</output></label>
           <input id="solar-position" type="range" min="0" max="100" step="1" value="50" style="width:100%;accent-color:#f5a623" aria-label="Momento del día">
-          <div style="display:flex;justify-content:space-between;gap:3px;font-size:11px"><span>Amanecer</span><span>Mañana</span><span>Día</span><span>Atardecer</span><span>Noche</span></div>
+          <div style="display:flex;justify-content:space-between;gap:3px;font-size:11px"><span>Amanecer</span><span>Mañana</span><span>Día</span><span>Tarde</span><span>Noche</span></div>
           <small>Desliza la barra para cambiar los colores y el astro. «Día y noche» anima automáticamente el ciclo.</small>
         </div>
       </div>
@@ -132,7 +132,7 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
               <option value="dawn">Amanecer</option>
               <option value="morning">Mañana</option>
               <option value="afternoon">Tarde</option>
-              <option value="sunset">Atardecer</option>
+              <option value="sunset">Tarde</option>
               <option value="night">Noche</option>
             </select>
           </label>
@@ -178,11 +178,11 @@ const clamp=n=>Math.max(0,Math.min(1,n));
 const ease=n=>n*n*(3-2*n);
 // Colores del mapa por fase solar: interpolación continua, no solo una capa transparente.
 const SOLAR_STOPS=[
-  {p:0,name:"Amanecer",sea:"#64758e",land:"#718096",line:"#e6b88e",tint:"#64758e"},
-  {p:25,name:"Mañana",sea:"#9bbdd2",land:"#9dbda8",line:"#e9e2c4",tint:"#c1d4e6"},
-  {p:50,name:"Día",sea:"#74b8dc",land:"#a4c7a0",line:"#f5e6b5",tint:"#fff7db"},
-  {p:75,name:"Atardecer",sea:"#785a91",land:"#a477a0",line:"#f6b38c",tint:"#ae719d"},
-  {p:100,name:"Noche",sea:"#0a1428",land:"#29354b",line:"#7187a7",tint:"#06142f"}
+  {p:0,name:"Amanecer",sea:"#274977",land:"#755d7e",line:"#e6a39b",tint:"#e49bb1"},
+  {p:25,name:"Mañana",sea:"#08749f",land:"#679e83",line:"#e8e2c8",tint:"#bdd9e7"},
+  {p:50,name:"Día",sea:"#087ea8",land:"#5fae67",line:"#f3e6ba",tint:"#e7f6ff"},
+  {p:75,name:"Tarde",sea:"#365579",land:"#ad8254",line:"#f2b278",tint:"#e6a270"},
+  {p:100,name:"Noche",sea:"#071c3c",land:"#172b46",line:"#e7c178",tint:"#0b2146"}
 ];
 function solarColor(a,b,t){const x=parseInt(a.slice(1),16),y=parseInt(b.slice(1),16);
   return "#"+[16,8,0].map(shift=>Math.round(((x>>shift)&255)*(1-t)+((y>>shift)&255)*t).toString(16).padStart(2,"0")).join("");
@@ -193,7 +193,7 @@ function solarAt(value){
   const a=SOLAR_STOPS[i],b=SOLAR_STOPS[i+1],t=(v-a.p)/(b.p-a.p);
   return {value:v,name:S0LAR_NAMES[Math.min(4,Math.round(v/25))],sea:solarColor(a.sea,b.sea,t),land:solarColor(a.land,b.land,t),line:solarColor(a.line,b.line,t),tint:solarColor(a.tint,b.tint,t)};
 }
-const S0LAR_NAMES=["Amanecer","Mañana","Día","Atardecer","Noche"];
+const S0LAR_NAMES=["Amanecer","Mañana","Día","Tarde","Noche"];
 function solarValue(lighting,overall){
   const presets={dawn:0,morning:25,day:50,afternoon:58,sunset:75,night:100};
   return lighting==="cycle"?overall*100:lighting==="manual"?Number($("solar-position").value):presets[lighting]??50;
@@ -438,7 +438,7 @@ function drawMap(ctx,camera,zoom,progress,distance,at,ms,still){
   }
   for(const {name,path,bounds:[xmin,ymin,xmax,ymax],color} of world){
     if(xmin>right||xmax<left||ymin>bottom||ymax<top)continue;
-    ctx.fillStyle=solarColor(color,activeSolar.land,.64);ctx.fill(path,"evenodd");stroke(ctx,path,"#a2bda4",.85/zoom);
+    ctx.fillStyle=solarColor(color,activeSolar.land,.80);ctx.fill(path,"evenodd");stroke(ctx,path,"#a2bda4",.85/zoom);
   }
   for(const {path,bounds:[xmin,ymin,xmax,ymax],major} of basemapRoads){
     if(xmin>right||xmax<left||ymin>bottom||ymax<top||(!major&&zoom<1.15))continue;
@@ -636,69 +636,17 @@ function renderLeg(ctx,ms,still,index,overall){
   const chosen=trip.timeOfDay||"auto";
   const lighting=chosen==="auto"?$("day-night").value:chosen;
   const palette={
-    dawn:["#64758e",.23],morning:["#c1d4e6",.13],
-    afternoon:["#fff7db",.05],sunset:["#ae719d",.30],night:["#06142f",.40]
+    dawn:["#e49bb1",.09],morning:["#bdd9e7",.04],
+    afternoon:["#e7f6ff",.025],sunset:["#e6a270",.07],night:["#0b2146",.08]
   };
-  const cycle=lighting==="cycle"?(.5-.5*Math.cos(overall*Math.PI*2)):0;
   const cyclePhase=overall<.20?"dawn":overall<.48?"morning":overall<.73?"day":overall<.92?"sunset":"night";
-  const tint=lighting==="manual"?[activeSolar.tint,.12]:palette[lighting]||(lighting==="cycle"?palette[cyclePhase]:null);
+  const tint=lighting==="manual"?[activeSolar.tint,.055]:palette[lighting]||(lighting==="cycle"?palette[cyclePhase]:null);
   if(tint){
     ctx.save();
     ctx.fillStyle=tint[0];ctx.globalAlpha=tint[1];ctx.fillRect(0,0,W,H);
     ctx.restore();
   }
-  // Sol animado por tramo: amanecer, mañana, tarde y atardecer.
-  // La posición depende exclusivamente del tiempo del video: vista previa y exportación coinciden.
-  const solarPhase=clamp(ms/DURATION);
-  const solarLighting=lighting==="manual"?(activeSolar.value>=88?"night":activeSolar.value>=65?"sunset":activeSolar.value>=40?"afternoon":activeSolar.value>=15?"morning":"dawn"):lighting==="cycle"?cyclePhase:lighting==="day"?"afternoon":lighting;
-  if(solarLighting!=="night"){
-    const solarPositions={
-      dawn:[.10,.82,.48,.35],
-      morning:[.48,.35,.62,.28],
-      afternoon:[.62,.28,.88,.48],
-      sunset:[.88,.48,1.04,.84]
-    };
-    const solar=solarPositions[solarLighting];
-    if(solar){
-      const sx=W*(solar[0]+(solar[2]-solar[0])*solarPhase);
-      const sy=H*(solar[1]+(solar[3]-solar[1])*solarPhase);
-      const isCute=true;
-      const radius=isCute?15:12;
-      ctx.save();
-      // Mantener el sol dentro de la zona del mapa, detrás de los rótulos superiores.
-      ctx.beginPath();ctx.rect(0,76,W,H-150);ctx.clip();
-      const halo=ctx.createRadialGradient(sx,sy,2,sx,sy,isCute?62:90);
-      halo.addColorStop(0,isCute?"#ffe29c99":"#ffe8b15c");
-      halo.addColorStop(1,"#ffd48000");
-      ctx.fillStyle=halo;ctx.beginPath();ctx.arc(sx,sy,isCute?62:90,0,Math.PI*2);ctx.fill();
-      ctx.globalAlpha=isCute?.94:.72;
-      ctx.fillStyle=solarLighting==="sunset"?"#ffad5c":"#ffe6a1";
-      ctx.beginPath();ctx.arc(sx,sy,radius,0,Math.PI*2);ctx.fill();
-      if(isCute){
-        ctx.strokeStyle="#ffc65c";ctx.lineWidth=2;ctx.lineCap="round";
-        for(let ray=0;ray<8;ray++){
-          const angle=ray*Math.PI/4+solarPhase*.12;
-          ctx.beginPath();
-          ctx.moveTo(sx+Math.cos(angle)*21,sy+Math.sin(angle)*21);
-          ctx.lineTo(sx+Math.cos(angle)*26,sy+Math.sin(angle)*26);
-          ctx.stroke();
-        }
-      }
-      ctx.restore();
-    }
-  }
-  // Luna en cuarto menguante, ilustrada y animada en modo noche.
-  if(solarLighting==="night"){
-    const phase=clamp(ms/DURATION),mx=W*(.22+.50*phase),my=H*(.24-.045*Math.sin(Math.PI*phase));
-    ctx.save();ctx.beginPath();ctx.rect(0,95,W,390);ctx.clip();
-    const glow=ctx.createRadialGradient(mx,my,2,mx,my,48);
-    glow.addColorStop(0,"#e1eaff66");glow.addColorStop(1,"#e1eaff00");
-    ctx.fillStyle=glow;ctx.beginPath();ctx.arc(mx,my,48,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#f2f4dc";ctx.beginPath();ctx.arc(mx,my,14,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(mx,my,14,0,Math.PI*2);ctx.clip();
-    ctx.fillStyle="#1a2e52";ctx.fillRect(mx,my-14,15,28);
-    ctx.restore();
-  }
+  // Iluminación del mapa sin cuerpos celestes, según el concepto aprobado.
   // Contador de kilómetros aproximados según los puntos geográficos del trazado.
   const geo=trip.geoKm||0;
   const shown=Math.round(geo*progress);
