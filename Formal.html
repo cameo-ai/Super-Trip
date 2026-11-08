@@ -112,11 +112,12 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
           </select></label>
           <label>Tipo de ruta
             <select name="route-kind">
+              <option value="auto">Automática · como antes</option>
               <option value="real">Real · trazado incorporado</option>
               <option value="fictional">Ficticia · línea ilustrativa</option>
             </select>
           </label>
-          <small>Real usa trazados incorporados cuando están disponibles; ficticia dibuja un recorrido ilustrativo.</small>
+          <small>Automática conserva el comportamiento anterior. Real exige trazado incorporado verificado; ficticia dibuja una curva ilustrativa.</small>
           <button class="leg-remove" type="button" hidden>Quitar tramo</button>
         </fieldset>
       </div>
@@ -665,7 +666,7 @@ function addLeg(values){
   from.value=values?.origen??legFields(list.lastElementChild)[1].value.trim();
   to.value=values?.destino??"";
   mode.value=values?.transporte??"bus";
-  routeKind(row).value=values?.routeKind??"real";
+  routeKind(row).value=values?.routeKind??"auto";
   const remove=row.querySelector(".leg-remove");remove.hidden=false;
   remove.addEventListener("click",()=>{row.remove();numberLegs();$("add-leg").focus();});
   list.append(row);numberLegs();
@@ -944,7 +945,7 @@ projectFile.addEventListener("change",async()=>{
     while(list.children.length>1)list.lastElementChild.remove();
     const first=legFields(list.firstElementChild);
     first[0].value=data.legs[0].origen;first[1].value=data.legs[0].destino;first[2].value=data.legs[0].transporte;
-    routeKind(list.firstElementChild).value=data.legs[0].routeKind==="fictional"?"fictional":"real";
+    routeKind(list.firstElementChild).value=["real","fictional"].includes(data.legs[0].routeKind)?data.legs[0].routeKind:"auto";
     for(const leg of data.legs.slice(1))addLeg(leg);
     numberLegs();
     durationInput.value=String(data.duration);
