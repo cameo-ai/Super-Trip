@@ -35,6 +35,9 @@ form button{justify-self:start}
 .duration-settings{display:flex;align-items:end;gap:8px;flex-wrap:wrap}
 .duration-settings label{flex:1 1 170px}
 .duration-settings button{background:#eef7ee;color:#22584a}
+.music-settings{display:grid;gap:6px;padding:9px;border:1px solid #c9dace;border-radius:10px;background:#fcfefa}
+.music-settings p{margin:0;color:#456459;font-size:12px;overflow-wrap:anywhere}
+input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;background:#156655;color:#fff;margin-right:8px}
 @media(max-width:480px){body{padding:0 0 12px}.stage{border-radius:0}.toolbar,.status,details{margin-inline:9px}}
 </style>
 </head>
@@ -55,6 +58,12 @@ form button{justify-self:start}
           <input id="video-duration" type="number" min="1" max="300" step="1" required value="30">
         </label>
         <button id="apply-duration" type="button" disabled>Aplicar duración</button>
+      </div>
+      <div class="music-settings">
+        <label>Música de fondo (MP3)
+          <input id="music" type="file" accept=".mp3,audio/mpeg">
+        </label>
+        <p id="music-status" role="status">Opcional · el archivo se procesa en este navegador.</p>
       </div>
       <div id="legs">
         <fieldset class="leg">
@@ -216,6 +225,7 @@ const playButton=$("play"), restartButton=$("restart"), exportButton=$("export")
 const reduced=matchMedia("(prefers-reduced-motion: reduce)");
 const sprites=new Image();
 let itinerary=[],trip=null, elapsed=0, previous=null, frame=0, playing=false, exporting=false;
+const musicInput=$("music"),musicStatus=$("music-status");
 const durationInput=$("video-duration"),applyDurationButton=$("apply-duration");
 const totalDuration=()=>itinerary.at(-1)?.endTime??0;
 
@@ -425,10 +435,12 @@ function controls(){
   applyDurationButton.disabled=!itinerary.length||exporting;
   for(const button of $("legs").querySelectorAll(".leg-remove"))button.disabled=exporting;
   $("create").disabled=!sprites.complete||!sprites.naturalWidth||exporting;
+  musicInput.disabled=exporting;
+  exportButton.disabled||=musicLoading;
   playButton.textContent=playing?"Pausar":elapsed>=totalDuration()?"Reproducir":elapsed?"Continuar":"Reproducir";
 }
 function stop(){
-  playing=false;previous=null;cancelAnimationFrame(frame);controls();
+  playing=false;previous=null;cancelAnimationFrame(frame);stopMusic();controls();
 }
 function animate(t){
   if(!playing)return;
@@ -442,6 +454,7 @@ function play(reset=false){
   if(!itinerary.length||exporting)return;
   if(reset||elapsed>=totalDuration())elapsed=0;
   stop();playing=true;controls();render(view,elapsed,reduced.matches);
+  previewMusic();
   frame=requestAnimationFrame(animate);
 }
 const legFields=row=>[row.querySelector('[name="origen"]'),row.querySelector('[name="destino"]'),row.querySelector('[name="transporte"]')];
@@ -503,12 +516,54 @@ function startConfiguredTrip(autoplay){
   if(autoplay)play();
 }
 
+let audioContext=null,musicBuffer=null,musicSource=null,musicLoading=false,musicSelection=0;
+function stopMusic(){
+  if(!musicSource)return;
+  musicSource.stop();musicSource.disconnect();musicSource=null;
+}
+function startMusic(offset,destination){
+  stopMusic();
+  if(!musicBuffer)return;
+  const source=audioContext.createBufferSource();
+  source.buffer=musicBuffer;source.loop=true;source.connect(destination);
+  source.start(0,(offset/1000)%musicBuffer.duration);musicSource=source;
+}
+function previewMusic(){
+  if(!musicBuffer)return;
+  audioContext.resume().then(()=>{
+    if(playing&&!exporting)startMusic(elapsed,audioContext.destination);
+  }).catch(()=>{musicStatus.textContent="Pulsa Reproducir para habilitar el audio.";});
+}
+musicInput.addEventListener("change",async()=>{
+  const selection=++musicSelection;
+  stopMusic();musicBuffer=null;
+  const file=musicInput.files[0];
+  musicLoading=!!file;controls();
+  if(!file){musicStatus.textContent="Opcional · el archivo se procesa en este navegador.";return;}
+  musicStatus.textContent="Cargando música…";
+  try{
+    if(!/\.mp3$/i.test(file.name))throw new Error("Selecciona un archivo MP3.");
+    audioContext??=new (window.AudioContext||window.webkitAudioContext)();
+    const buffer=await audioContext.decodeAudioData(await file.arrayBuffer());
+    if(selection!==musicSelection)return;
+    if(!buffer.duration)throw new Error("El MP3 está vacío.");
+    musicBuffer=buffer;
+    musicStatus.textContent=`${file.name} · listo para reproducir y exportar`;
+    if(playing)previewMusic();
+  }catch(error){
+    if(selection===musicSelection)musicStatus.textContent=error.message||"No se pudo abrir el MP3.";
+  }finally{
+    if(selection===musicSelection){musicLoading=false;controls();}
+  }
+});
+
 function recorderFor(stream){
+  const withAudio=stream.getAudioTracks().length>0;
   const options=[
+    [withAudio?"video/mp4;codecs=avc1.420028,mp4a.40.2":"video/mp4;codecs=avc1.420028","mp4"],
     ["video/mp4","mp4"],
-    ["video/mp4;codecs=avc1.420028","mp4"],
-    ["video/webm;codecs=vp9","webm"],
-    ["video/webm;codecs=vp8","webm"],
+    [withAudio?"video/webm;codecs=vp9,opus":"video/webm;codecs=vp9","webm"],
+    [withAudio?"video/webm;codecs=vp8,opus":"video/webm;codecs=vp8","webm"],
     ["video/webm","webm"]
   ];
   for(const [mime,extension] of options){
@@ -520,7 +575,7 @@ function recorderFor(stream){
 }
 
 async function download(){
-  if(!itinerary.length||exporting)return;
+  if(!itinerary.length||exporting||musicLoading)return;
   if(typeof MediaRecorder==="undefined"||!HTMLCanvasElement.prototype.captureStream){
     status.textContent="Este navegador no puede grabar el mapa. Abre el HTML en Chrome o Edge actualizado.";
     return;
@@ -533,6 +588,11 @@ async function download(){
     const ctx=canvas.getContext("2d");
     render(ctx,0);
     stream=canvas.captureStream(30);
+    const audioTarget=musicBuffer?audioContext.createMediaStreamDestination():null;
+    if(audioTarget){
+      await audioContext.resume();
+      for(const track of audioTarget.stream.getAudioTracks())stream.addTrack(track);
+    }
     const config=recorderFor(stream);
     recorder=config.recorder;
     const chunks=[];
@@ -547,7 +607,10 @@ async function download(){
       document.addEventListener("visibilitychange",onVisibility);
       function draw(t){
         if(document.hidden){reject(new Error("Mantén esta pestaña abierta y visible durante la descarga."));return;}
-        if(start===null)start=t;
+        if(start===null){
+          start=t;
+          if(audioTarget)startMusic(0,audioTarget);
+        }
         const ms=Math.min(totalDuration(),t-start);
         render(ctx,ms);
         view.setTransform(1,0,0,1,0,0);
@@ -572,7 +635,7 @@ async function download(){
     status.textContent=error.message||"No se pudo generar el video.";
     render(view,elapsed,reduced.matches);
   }finally{
-    cancelAnimationFrame(captureFrame);clearTimeout(timeout);
+    stopMusic();cancelAnimationFrame(captureFrame);clearTimeout(timeout);
     if(onVisibility)document.removeEventListener("visibilitychange",onVisibility);
     if(recorder?.state==="recording")recorder.stop();
     stream?.getTracks().forEach(track=>track.stop());
