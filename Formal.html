@@ -290,17 +290,20 @@ const reduced=matchMedia("(prefers-reduced-motion: reduce)");
 const musicInput=$("music"),musicStatus=$("music-status");
 let itinerary=[],trip=null, elapsed=0, previous=null, frame=0, playing=false, exporting=false;
 const durationInput=$("video-duration"),applyDurationButton=$("apply-duration");
-const totalDuration=()=>itinerary.at(-1)?.endTime??0;
+const totalDuration=()=>itinerary.length?Number(durationInput.value)*1000:0;
+const cardDuration=()=>Math.min(2500,totalDuration()*.10);
 
 function schedule(legs,seconds){
-  const total=seconds*1000;
+  const full=seconds*1000;
+  const card=Math.min(2500,full*.10);
+  const total=full-2*card;
   const weights=legs.map(leg=>Math.sqrt(Math.max(1,leg.km)));
   const sum=weights.reduce((a,b)=>a+b,0);
   const minimum=total*.35/legs.length;
-  let cursor=0;
+  let cursor=card;
   legs.forEach((leg,index)=>{
     leg.startTime=cursor;
-    cursor=index===legs.length-1?total:cursor+minimum+total*.65*weights[index]/sum;
+    cursor=index===legs.length-1?full-card:cursor+minimum+total*.65*weights[index]/sum;
     leg.endTime=cursor;
   });
 }
@@ -440,8 +443,27 @@ function pill(ctx,x,y,w,h,r,color){
 function centered(ctx,text,x,y,px,color,max=318,weight=800){
   ctx.font=`${weight} ${px}px system-ui,sans-serif`;ctx.fillStyle=color;ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(text,x,y,max);
 }
+function renderTitleCard(ctx,closing,ms){
+  ctx.setTransform(ctx.canvas.width/W,0,0,ctx.canvas.height/H,0,0);
+  ctx.fillStyle="#091324";ctx.fillRect(0,0,W,H);
+  const first=itinerary[0],last=itinerary.at(-1);
+  const duration=cardDuration();
+  const phase=closing?Math.max(0,ms-(totalDuration()-duration)):ms;
+  const opacity=Math.min(1,phase/Math.max(1,duration*.22),(duration-phase)/Math.max(1,duration*.18));
+  ctx.save();ctx.globalAlpha=Math.max(0,opacity);
+  centered(ctx,"SUPER-TRIP · FORMAL",180,166,13,"#ff9f1c",320,800);
+  centered(ctx,closing?"¡VIAJE COMPLETADO!":"NUESTRO VIAJE",180,236,21,"#ff9f1c",330,800);
+  centered(ctx,first.from,180,296,30,"#f5f7ff",328,850);
+  centered(ctx,"↓",180,343,29,"#ff9f1c",300);
+  centered(ctx,last.to,180,389,30,"#f5f7ff",328,850);
+  centered(ctx,`${itinerary.length} ${itinerary.length===1?"TRAMO":"TRAMOS"} · ${itinerary.map(leg=>leg.mode.name).join(" · ")}`,180,456,11,"#aec4e6",325,650);
+  centered(ctx,closing?"GRACIAS POR ACOMPAÑARNOS":"PREPARANDO LA RUTA",180,518,12,"#aec4e6",320,700);
+  ctx.restore();
+}
 function render(ctx,ms,still=false){
   if(!itinerary.length)return;
+  if(ms<cardDuration()){renderTitleCard(ctx,false,ms);return;}
+  if(ms>=totalDuration()-cardDuration()){renderTitleCard(ctx,true,ms);return;}
   const next=itinerary.findIndex(leg=>ms<leg.endTime);
   const index=next<0?itinerary.length-1:next;
   trip=itinerary[index];
