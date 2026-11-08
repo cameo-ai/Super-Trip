@@ -487,8 +487,17 @@ function renderLeg(ctx,ms,still,index,overall){
   const back=pointAt(trip.route,distance-7),next=pointAt(trip.route,distance+7);
   const heading=Math.atan2(next.y-back.y,next.x-back.x)+Math.PI/2;
   const {center,zoom:baseZoom}=trip.route;
-  const zoom=baseZoom*(still?1:.91+.10*Math.sin(Math.PI*visual));
-  const camera=still?center:{x:center.x+(point.x-center.x)*.24,y:center.y+(point.y-center.y)*.24};
+  // Cámara determinista: la vista previa y la exportación comparten el mismo encuadre.
+  // Apertura panorámica, seguimiento suave y alejamiento antes de llegar.
+  const smooth=t=>{const v=clamp(t);return v*v*(3-2*v);};
+  const enter=smooth(visual/.20);
+  const leave=smooth((visual-.78)/.22);
+  const tracking=enter*(1-leave);
+  // Mantener el vehículo dentro de la zona útil, sin invadir los rótulos.
+  const follow=.62*tracking;
+  const camera={x:center.x+(point.x-center.x)*follow,y:center.y+(point.y-center.y)*follow};
+  const zoom=baseZoom*(1+.18*tracking);
+
   drawMap(ctx,camera,zoom,progress,distance,point,ms,still);
   const x=180+(point.x-camera.x)*zoom,y=345+(point.y-camera.y)*zoom;
   ctx.save();ctx.translate(x,y);ctx.rotate(heading);ctx.scale(.72,.72);
