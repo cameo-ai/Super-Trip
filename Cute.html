@@ -126,6 +126,9 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
           <label>Fotografía al llegar (opcional)
             <input name="arrival-photo" type="file" accept="image/png,image/jpeg,image/webp">
           </label>
+          <label>Duración de la fotografía (segundos)
+            <input name="photo-seconds" type="number" min="1" max="30" step="1" value="5">
+          </label>
           <button class="leg-remove" type="button" hidden>Quitar tramo</button>
         </fieldset>
       </div>
@@ -324,9 +327,11 @@ function schedule(legs,seconds){
     const duration=Number.isFinite(leg.seconds)&&leg.seconds>0?leg.seconds*1000:
       custom?free*weights[index]/Math.max(1,missingWeights):
       available*(.35/legs.length+.65*weights[index]/sum);
-    cursor+=duration;leg.endTime=cursor;
+    cursor+=duration;leg.travelEnd=cursor;
+    leg.photoHold=leg.photo?Math.max(1000,Math.min(30000,(leg.photoSeconds||5)*1000)):0;
+    cursor+=leg.photoHold;leg.endTime=cursor;
   });
-  if(custom)durationInput.value=String(Math.max(1,Math.ceil((cursor+card)/1000)));
+  if(custom||legs.some(leg=>leg.photoHold))durationInput.value=String(Math.max(1,Math.ceil((cursor+card)/1000)));
 }
 function makeRoute(coords){
   const path=new Path2D();
@@ -479,17 +484,18 @@ function render(ctx,ms,still=false){
   const next=itinerary.findIndex(leg=>ms<leg.endTime);
   const index=next<0?itinerary.length-1:next;
   trip=itinerary[index];
-  const fraction=clamp((ms-trip.startTime)/(trip.endTime-trip.startTime));
+  const travelEnd=trip.travelEnd||trip.endTime;
+  const fraction=clamp((ms-trip.startTime)/Math.max(1,travelEnd-trip.startTime));
   renderLeg(ctx,fraction*DURATION,still,index,clamp(ms/totalDuration()));
-  renderArrivalPhoto(ctx,trip,fraction);
+  if(trip.photo&&ms>=travelEnd)renderArrivalPhoto(ctx,trip,clamp((ms-travelEnd)/Math.max(1,trip.photoHold)),true);
 }
 const arrivalImages=new Map();
-function renderArrivalPhoto(ctx,leg,fraction){
-  if(!leg.photo||fraction<.82)return;
+function renderArrivalPhoto(ctx,leg,fraction,holding=false){
+  if(!leg.photo||(!holding&&fraction<.82))return;
   let image=arrivalImages.get(leg.photo);
   if(!image){image=new Image();image.src=leg.photo;arrivalImages.set(leg.photo,image);}
   if(!image.complete||!image.naturalWidth)return;
-  const alpha=ease(clamp((fraction-.82)/.10))*(fraction>.97?clamp((1-fraction)/.03):1);
+  const alpha=holding?ease(clamp(fraction/.12))*(fraction>.90?clamp((1-fraction)/.10):1):ease(clamp((fraction-.82)/.10))*(fraction>.97?clamp((1-fraction)/.03):1);
   ctx.save();ctx.setTransform(ctx.canvas.width/W,0,0,ctx.canvas.height/H,0,0);
   ctx.globalAlpha=alpha;
   ctx.fillStyle="#f8fff0";
@@ -650,6 +656,7 @@ function addLeg(values){
   mode.value=values?.transporte??"bus";
   routeKind(row).value=values?.routeKind??"auto";
   row.querySelector('[name="leg-seconds"]').value=values?.seconds??"";
+  row.querySelector('[name="photo-seconds"]').value=values?.photoSeconds??5;
   const remove=row.querySelector(".leg-remove");remove.hidden=false;
   remove.addEventListener("click",()=>{row.remove();numberLegs();$("add-leg").focus();});
   list.append(row);numberLegs();
@@ -694,7 +701,7 @@ function configure(autoplay){
       const at=route.points.findIndex(p=>p.x===port.x&&p.y===port.y);
       if(at>0)transfer={...found.transfer,index:at};
     }
-    next.push({...found,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photo:row._arrivalPhoto||null,routeKind:kind,key,mode:modes[key],route,transfer,geoKm});
+    next.push({...found,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5,photo:row._arrivalPhoto||null,routeKind:kind,key,mode:modes[key],route,transfer,geoKm});
   }
   stop();schedule(next,durationInput.valueAsNumber);itinerary=next;
   rows.forEach((row,index)=>{
@@ -823,8 +830,16 @@ async function download(){
       ctx.setTransform(1,0,0,1,0,0);
       ctx.fillStyle="#dff5e8";
       ctx.fillRect(0,0,canvas.width,canvas.height);
-      const scale=Math.min(canvas.width/art.width,canvas.height/art.height);
-      const w=art.width*scale,h=art.height*scale;
+      // Fondo adaptativo: llena todo el formato sin barras vacías.
+      // El mapa principal permanece completo y legible, sin recortes de destinos.
+      const cover=Math.max(canvas.width/art.width,canvas.height/art.height);
+      const bw=art.width*cover,bh=art.height*cover;
+      ctx.save();
+      ctx.filter="blur(42px) brightness(.72)";
+      ctx.drawImage(art,(canvas.width-bw)/2,(canvas.height-bh)/2,bw,bh);
+      ctx.restore();
+      const fit=Math.min(canvas.width/art.width,canvas.height/art.height);
+      const w=art.width*fit,h=art.height*fit;
       ctx.drawImage(art,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
     };
     paint(0);
@@ -896,7 +911,7 @@ projectSave.addEventListener("click",async()=>{
   if(exporting)return;
   const rows=[...$("legs").children].map(row=>{
     const [from,to,mode]=legFields(row);
-    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null};
+    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5};
   });
   const musicFile=musicInput.files?.[0];
   try{
@@ -968,7 +983,7 @@ function rememberLastTrip(){
   try{
     const legs=[...$("legs").children].map(row=>{
       const [from,to,mode]=legFields(row);
-      return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null};
+      return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5};
     });
     localStorage.setItem(lastTripKey,JSON.stringify({
       version:1,legs,duration:durationInput.value,lighting:$("day-night").value,
@@ -991,6 +1006,7 @@ function restoreLastTrip(snapshot){
     fields[2].value=String(first.transporte||"bus");
     routeKind(list.firstElementChild).value=first.routeKind||"auto";
     list.firstElementChild.querySelector('[name="leg-seconds"]').value=first.seconds??"";
+    list.firstElementChild.querySelector('[name="photo-seconds"]').value=first.photoSeconds??5;
     for(const leg of saved.legs.slice(1))addLeg(leg);
     numberLegs();
     if(["day","night","cycle"].includes(saved.lighting))$("day-night").value=saved.lighting;
@@ -1031,7 +1047,7 @@ const libraryWrite=items=>localStorage.setItem(libraryKey,JSON.stringify(items))
 const snapshotTrip=()=>{
   const legs=[...$("legs").children].map(row=>{
     const [from,to,mode]=legFields(row);
-    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null};
+    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5};
   });
   return {version:1,legs,duration:durationInput.value,lighting:$("day-night").value,format:selectedFormat,
     audio:{volume:musicVolume.value,fadeIn:musicFadeIn.value,start:musicStart.value,
