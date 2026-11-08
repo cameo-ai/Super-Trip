@@ -600,11 +600,12 @@ function renderLeg(ctx,ms,still,index,overall){
   const chosen=trip.timeOfDay||"auto";
   const lighting=chosen==="auto"?$("day-night").value:chosen;
   const palette={
-    dawn:["#ffb96b",.18],morning:["#fff4cd",.08],
-    afternoon:["#f5bb6e",.13],sunset:["#f27742",.26],night:["#06142f",.40]
+    dawn:["#64758e",.23],morning:["#c1d4e6",.13],
+    afternoon:["#fff7db",.05],sunset:["#ae719d",.30],night:["#06142f",.40]
   };
   const cycle=lighting==="cycle"?(.5-.5*Math.cos(overall*Math.PI*2)):0;
-  const tint=palette[lighting]||(lighting==="cycle"?["#06142f",.38*cycle]:null);
+  const cyclePhase=overall<.20?"dawn":overall<.48?"morning":overall<.73?"afternoon":overall<.92?"sunset":"night";
+  const tint=palette[lighting]||(lighting==="cycle"?palette[cyclePhase]:null);
   if(tint){
     ctx.save();
     ctx.fillStyle=tint[0];ctx.globalAlpha=tint[1];ctx.fillRect(0,0,W,H);
@@ -613,9 +614,7 @@ function renderLeg(ctx,ms,still,index,overall){
   // Sol animado por tramo: amanecer, mañana, tarde y atardecer.
   // La posición depende exclusivamente del tiempo del video: vista previa y exportación coinciden.
   const solarPhase=clamp(ms/DURATION);
-  const solarLighting=lighting==="cycle"
-    ?(overall<.20?"dawn":overall<.48?"morning":overall<.73?"afternoon":overall<.92?"sunset":"night")
-    :lighting==="day"?"morning":lighting;
+  const solarLighting=lighting==="cycle"?cyclePhase:lighting==="day"?"afternoon":lighting;
   if(solarLighting!=="night"){
     const solarPositions={
       dawn:[.10,.82,.48,.35],
@@ -651,6 +650,17 @@ function renderLeg(ctx,ms,still,index,overall){
       }
       ctx.restore();
     }
+  }
+  // Luna en cuarto menguante, ilustrada y animada en modo noche.
+  if(solarLighting==="night"){
+    const phase=clamp(ms/DURATION),mx=W*(.22+.50*phase),my=H*(.24-.045*Math.sin(Math.PI*phase));
+    ctx.save();ctx.beginPath();ctx.rect(0,95,W,390);ctx.clip();
+    const glow=ctx.createRadialGradient(mx,my,2,mx,my,48);
+    glow.addColorStop(0,"#e1eaff66");glow.addColorStop(1,"#e1eaff00");
+    ctx.fillStyle=glow;ctx.beginPath();ctx.arc(mx,my,48,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#f2f4dc";ctx.beginPath();ctx.arc(mx,my,14,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#1a2e52";ctx.fillRect(mx,my-14,15,28);
+    ctx.restore();
   }
   // Contador de kilómetros aproximados según los puntos geográficos del trazado.
   const geo=trip.geoKm||0;
