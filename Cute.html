@@ -463,8 +463,14 @@ function render(ctx,ms,still=false){
 }
 function renderLeg(ctx,ms,still,index,overall){
   ctx.setTransform(ctx.canvas.width/W,0,0,ctx.canvas.height/H,0,0);
-  const progress=ease(clamp(ms/ARRIVAL));
+  // Animación por tramo: salida suave, viaje, frenado/aterrizaje y pausa al llegar.
+  // Basada solo en tiempo para reproducirse igual en vista previa y exportación.
+  const phase=clamp(ms/DURATION);
+  const depart=.09,arrive=.87;
+  const motion=clamp((phase-depart)/(arrive-depart));
+  const progress=ease(motion);
   const visual=still?Math.floor(progress*4)/4:progress;
+  const departing=phase<depart,arrived=phase>=arrive;
   let distance=visual*trip.route.distance;
   let mode=trip.mode;
   if(trip.transfer){
@@ -515,8 +521,11 @@ function renderLeg(ctx,ms,still,index,overall){
   const shadow=ctx.createRadialGradient(0,0,4,0,0,29);
   shadow.addColorStop(0,"#25474e79");shadow.addColorStop(1,"#25474e00");
   ctx.scale(Math.max(.20,w/72),h/90);circle(ctx,0,0,29,shadow);ctx.restore();
-  ctx.save();ctx.translate(x,y-lift-(still?0:Math.sin(ms/270)*(trip.key==="avion"?2:0)));
-  ctx.rotate(heading+angle);ctx.drawImage(sprites,sx,sy,sw,sh,-w/2,-h/2,w,h);ctx.restore();
+  const airborne=mode===modes.avion?Math.sin(Math.PI*progress):0;
+  const bob=mode===modes.barco&&!still?Math.sin(ms/290)*2.2:0;
+  const roll=mode===modes.barco&&!still?Math.sin(ms/460)*.045:0;
+  ctx.save();ctx.translate(x,y-lift-airborne*6+bob-(still?0:Math.sin(ms/270)*(trip.key==="avion"?1:0)));
+  ctx.rotate(heading+angle+roll);ctx.drawImage(sprites,sx,sy,sw,sh,-w/2,-h/2,w,h);ctx.restore();
   const fade=ctx.createLinearGradient(0,0,0,120);fade.addColorStop(0,"#f7fbf2");fade.addColorStop(1,"#f7fbf200");
   ctx.fillStyle=fade;ctx.fillRect(0,0,W,120);
   const modeTitle=trip.efe?"EN TREN EFE":trip.transfer?"TERRESTRE Y MARÍTIMO":`EN ${mode.name.toLocaleUpperCase("es")}`;
@@ -528,7 +537,7 @@ function renderLeg(ctx,ms,still,index,overall){
       ? trip.reverse?"De Valparaíso a Santiago":"Rumbo al puerto de Valparaíso"
       : trip.reverse?"Navegando hacia Valparaíso":"Rumbo a Río por el cabo de Hornos"
     : progress<.20?`¡Salimos de ${trip.from}!`:mode.caption;
-  const caption=progress===1?`¡Llegamos a ${trip.to}!`:progress<.93?underway:"¡Ya casi llegamos!";
+  const caption=arrived?`¡Llegamos a ${trip.to}!`:departing?(mode===modes.avion?"Preparando el despegue":mode===modes.barco?"¡Zarpamos!":mode===modes.bus?"Saliendo de la terminal":`¡Salimos de ${trip.from}!`):progress<.93?underway:"¡Ya casi llegamos!";
   pill(ctx,20,562,320,39,15,"#fcfff3ed");
   centered(ctx,caption,180,581,14,"#194440",295);
   pill(ctx,42,608,276,3,2,"#f9fff1ba");
