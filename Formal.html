@@ -495,8 +495,21 @@ function renderLeg(ctx,ms,still,index,overall){
   const tracking=enter*(1-leave);
   // Mantener el vehículo dentro de la zona útil, sin invadir los rótulos.
   const follow=.62*tracking;
-  const camera={x:center.x+(point.x-center.x)*follow,y:center.y+(point.y-center.y)*follow};
-  const zoom=baseZoom*(1+.18*tracking);
+  // No ampliar más de lo que permite la zona segura de la imagen.
+  // Las tarjetas superior e inferior deben permanecer libres de recortes.
+  const zoom=baseZoom*(1+.14*tracking);
+  const desired={x:center.x+(point.x-center.x)*follow,y:center.y+(point.y-center.y)*follow};
+  const halfWidth=154/zoom,halfHeight=225/zoom;
+  const bounds=trip.route.points.reduce((b,p)=>({
+    minX:Math.min(b.minX,p.x),maxX:Math.max(b.maxX,p.x),
+    minY:Math.min(b.minY,p.y),maxY:Math.max(b.maxY,p.y)
+  }),{minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity});
+  // Acotar la cámara a la región del recorrido con un margen moderado.
+  const limit=(value,min,max)=>min<=max?Math.max(min,Math.min(max,value)):(min+max)/2;
+  const camera={
+    x:limit(desired.x,bounds.minX-halfWidth*.25,bounds.maxX+halfWidth*.25),
+    y:limit(desired.y,bounds.minY-halfHeight*.25,bounds.maxY+halfHeight*.25)
+  };
 
   drawMap(ctx,camera,zoom,progress,distance,point,ms,still);
   const x=180+(point.x-camera.x)*zoom,y=345+(point.y-camera.y)*zoom;
