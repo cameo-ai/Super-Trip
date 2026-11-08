@@ -463,7 +463,9 @@ function label(ctx,text,x,y,zoom,size,color="#c6d8f3"){
 }
 function drawMap(ctx,camera,zoom,progress,distance,at,ms,still){
   ctx.save();
-  ctx.translate(180,345);ctx.scale(zoom,zoom);ctx.translate(-camera.x,-camera.y);
+  // Zona segura: el mapa y sus marcadores no invaden las tarjetas inferiores.
+  ctx.beginPath();ctx.rect(0,105,W,383);ctx.clip();
+  ctx.translate(180,295);ctx.scale(zoom,zoom);ctx.translate(-camera.x,-camera.y);
   ctx.lineCap="round";ctx.lineJoin="round";
   const left=camera.x-181/zoom,right=camera.x+181/zoom,top=camera.y-346/zoom,bottom=camera.y+296/zoom;
   ctx.fillStyle="#0a1428";ctx.fillRect(left,top,right-left,bottom-top);
@@ -632,7 +634,7 @@ function renderLeg(ctx,ms,still,index,overall){
   const leave=smooth((visual-.78)/.22);
   const tracking=enter*(1-leave);
   // Mantener el vehículo dentro de la zona útil, sin invadir los rótulos.
-  const follow=.62*tracking;
+  const follow=.62*tracking+.80*leave;
   // No ampliar más de lo que permite la zona segura de la imagen.
   // Las tarjetas superior e inferior deben permanecer libres de recortes.
   const zoom=baseZoom*(1+.14*tracking);
@@ -688,11 +690,12 @@ function renderLeg(ctx,ms,still,index,overall){
   const chosen=trip.timeOfDay||"auto";
   const lighting=chosen==="auto"?$("day-night").value:chosen;
   const palette={
-    dawn:["#ffb96b",.18],morning:["#fff4cd",.08],
-    afternoon:["#f5bb6e",.13],sunset:["#f27742",.26],night:["#06142f",.40]
+    dawn:["#64758e",.23],morning:["#c1d4e6",.13],
+    afternoon:["#fff7db",.05],sunset:["#ae719d",.30],night:["#06142f",.40]
   };
   const cycle=lighting==="cycle"?(.5-.5*Math.cos(overall*Math.PI*2)):0;
-  const tint=palette[lighting]||(lighting==="cycle"?["#06142f",.38*cycle]:null);
+  const cyclePhase=overall<.20?"dawn":overall<.48?"morning":overall<.73?"afternoon":overall<.92?"sunset":"night";
+  const tint=palette[lighting]||(lighting==="cycle"?palette[cyclePhase]:null);
   if(tint){
     ctx.save();
     ctx.fillStyle=tint[0];ctx.globalAlpha=tint[1];ctx.fillRect(0,0,W,H);
@@ -700,9 +703,7 @@ function renderLeg(ctx,ms,still,index,overall){
   }
   // Sol discreto y animado, sincronizado con el tiempo del tramo.
   const solarPhase=clamp(ms/DURATION);
-  const solarLighting=lighting==="cycle"
-    ?(overall<.20?"dawn":overall<.48?"morning":overall<.73?"afternoon":overall<.92?"sunset":"night")
-    :lighting==="day"?"morning":lighting;
+  const solarLighting=lighting==="cycle"?cyclePhase:lighting==="day"?"afternoon":lighting;
   const solarPositions={dawn:[.10,.82,.48,.35],morning:[.48,.35,.62,.28],
     afternoon:[.62,.28,.88,.48],sunset:[.88,.48,1.04,.84]};
   const solar=solarPositions[solarLighting];
@@ -715,6 +716,17 @@ function renderLeg(ctx,ms,still,index,overall){
     ctx.fillStyle=halo;ctx.beginPath();ctx.arc(sx,sy,90,0,Math.PI*2);ctx.fill();
     ctx.globalAlpha=.72;ctx.fillStyle=solarLighting==="sunset"?"#ffad5c":"#ffe6a1";
     ctx.beginPath();ctx.arc(sx,sy,12,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  // Luna en cuarto menguante: disco iluminado a la izquierda.
+  if(solarLighting==="night"){
+    const phase=clamp(ms/DURATION),mx=W*(.22+.50*phase),my=H*(.24-.045*Math.sin(Math.PI*phase));
+    ctx.save();ctx.beginPath();ctx.rect(0,105,W,380);ctx.clip();
+    const glow=ctx.createRadialGradient(mx,my,2,mx,my,52);
+    glow.addColorStop(0,"#dce9ff55");glow.addColorStop(1,"#dce9ff00");
+    ctx.fillStyle=glow;ctx.beginPath();ctx.arc(mx,my,52,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#dce9ff";ctx.beginPath();ctx.arc(mx,my,12,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#15223a";ctx.fillRect(mx,my-12,13,24);
+    ctx.restore();
   }
   const fade=ctx.createLinearGradient(0,0,0,115);
   fade.addColorStop(0,"#0a1428");fade.addColorStop(1,"#0a142800");
