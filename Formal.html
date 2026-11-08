@@ -125,6 +125,16 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
             </select>
           </label>
           <small>Automática conserva el comportamiento anterior. Real exige trazado incorporado verificado; ficticia dibuja una curva ilustrativa.</small>
+          <label>Momento del día en este tramo
+            <select name="leg-time">
+              <option value="auto">Automático · ajuste general</option>
+              <option value="dawn">Amanecer</option>
+              <option value="morning">Mañana</option>
+              <option value="afternoon">Tarde</option>
+              <option value="sunset">Atardecer</option>
+              <option value="night">Noche</option>
+            </select>
+          </label>
           <label>Duración de este tramo (segundos, opcional)
             <input name="leg-seconds" type="number" min="1" max="300" step="1" placeholder="Automática">
           </label>
@@ -661,9 +671,20 @@ function renderLeg(ctx,ms,still,index,overall){
   }
   ctx.restore();
   // Iluminación cinematográfica aplicada sobre el mapa y los vehículos.
-  const lighting=$("day-night").value;
-  const darkness=lighting==="night"?.34:lighting==="cycle"?.34*(.5-.5*Math.cos(overall*Math.PI*2)):0;
-  if(darkness){ctx.fillStyle=`rgba(4,12,35,${darkness})`;ctx.fillRect(0,0,W,H);}
+  // Cada tramo puede tener su propia iluminación; "auto" conserva el ajuste general.
+  const chosen=trip.timeOfDay||"auto";
+  const lighting=chosen==="auto"?$("day-night").value:chosen;
+  const palette={
+    dawn:["#ffb96b",.18],morning:["#fff4cd",.08],
+    afternoon:["#f5bb6e",.13],sunset:["#f27742",.26],night:["#06142f",.40]
+  };
+  const cycle=lighting==="cycle"?(.5-.5*Math.cos(overall*Math.PI*2)):0;
+  const tint=palette[lighting]||(lighting==="cycle"?["#06142f",.38*cycle]:null);
+  if(tint){
+    ctx.save();
+    ctx.fillStyle=tint[0];ctx.globalAlpha=tint[1];ctx.fillRect(0,0,W,H);
+    ctx.restore();
+  }
   const fade=ctx.createLinearGradient(0,0,0,115);
   fade.addColorStop(0,"#0a1428");fade.addColorStop(1,"#0a142800");
   ctx.fillStyle=fade;ctx.fillRect(0,0,W,115);
@@ -749,6 +770,7 @@ function addLeg(values){
   to.value=values?.destino??"";
   mode.value=values?.transporte??"bus";
   routeKind(row).value=values?.routeKind??"auto";
+  row.querySelector('[name="leg-time"]').value=values?.timeOfDay??"auto";
   row.querySelector('[name="leg-seconds"]').value=values?.seconds??"";
   row.querySelector('[name="photo-seconds"]').value=values?.photoSeconds??5;
   const remove=row.querySelector(".leg-remove");remove.hidden=false;
@@ -790,7 +812,7 @@ function configure(autoplay){
       const at=route.points.findIndex(p=>p.x===port.x&&p.y===port.y);
       if(at>0)transfer={...found.transfer,index:at};
     }
-    next.push({...found,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5,photo:row._arrivalPhoto||null,routeKind:kind,key,mode:modes[key],route,transfer,km:distanceKm(coords)});
+    next.push({...found,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5,photo:row._arrivalPhoto||null,timeOfDay:row.querySelector('[name="leg-time"]').value,routeKind:kind,key,mode:modes[key],route,transfer,km:distanceKm(coords)});
   }
   stop();schedule(next,durationInput.valueAsNumber);itinerary=next;
   rows.forEach((row,index)=>{
@@ -1001,7 +1023,7 @@ projectSave.addEventListener("click",async()=>{
   if(exporting)return;
   const rows=[...$("legs").children].map(row=>{
     const [from,to,mode]=legFields(row);
-    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5};
+    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,timeOfDay:row.querySelector('[name="leg-time"]').value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5};
   });
   const musicFile=musicInput.files?.[0];
   try{
@@ -1073,7 +1095,7 @@ function rememberLastTrip(){
   try{
     const legs=[...$("legs").children].map(row=>{
       const [from,to,mode]=legFields(row);
-      return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5};
+      return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,timeOfDay:row.querySelector('[name="leg-time"]').value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5};
     });
     localStorage.setItem(lastTripKey,JSON.stringify({
       version:1,legs,duration:durationInput.value,lighting:$("day-night").value,
@@ -1095,6 +1117,7 @@ function restoreLastTrip(snapshot){
     fields[1].value=String(first.destino||"");
     fields[2].value=String(first.transporte||"bus");
     routeKind(list.firstElementChild).value=first.routeKind||"auto";
+    list.firstElementChild.querySelector('[name="leg-time"]').value=first.timeOfDay??"auto";
     list.firstElementChild.querySelector('[name="leg-seconds"]').value=first.seconds??"";
     list.firstElementChild.querySelector('[name="photo-seconds"]').value=first.photoSeconds??5;
     for(const leg of saved.legs.slice(1))addLeg(leg);
@@ -1137,7 +1160,7 @@ const libraryWrite=items=>localStorage.setItem(libraryKey,JSON.stringify(items))
 const snapshotTrip=()=>{
   const legs=[...$("legs").children].map(row=>{
     const [from,to,mode]=legFields(row);
-    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5};
+    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value,timeOfDay:row.querySelector('[name="leg-time"]').value,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photoSeconds:Number(row.querySelector('[name="photo-seconds"]').value)||5};
   });
   return {version:1,legs,duration:durationInput.value,lighting:$("day-night").value,format:selectedFormat,
     audio:{volume:musicVolume.value,fadeIn:musicFadeIn.value,start:musicStart.value,
