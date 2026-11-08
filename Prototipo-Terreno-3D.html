@@ -11,6 +11,7 @@
 <div class="stages" role="group" aria-label="Iluminación"><button data-stage="0">Amanecer</button><button data-stage="1">Mañana</button><button data-stage="2" aria-pressed="true">Día</button><button data-stage="3">Tarde</button><button data-stage="4">Noche</button></div>
 <div class="control"><label for="phase">Transición</label><input id="phase" type="range" min="0" max="100" value="50" step="1"><output id="phase-label">Día</output></div>
 <div class="fields" style="margin-top:9px"><button id="flight" disabled>Animar Santiago → Río</button><button id="reset" disabled>Vista general</button></div>
+<div class="fields" style="margin-top:8px"><button id="raw" disabled>1 · Sin filtros</button><button id="flat" disabled>2 · Terreno plano</button><button id="osm" disabled>3 · Mapa OSM</button></div>
 <div id="status" role="status">Introduce un token de Cesium ion para habilitar el relieve real. No se guarda ni se envía a GitHub.</div>
 <div id="diagnostics" style="margin-top:8px;font-size:11px;color:#f4dca8;white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">Diagnóstico: sin iniciar.</div></section>
 <div class="credit">Prototipo técnico · Imágenes y terreno según proveedor Cesium ion</div>
@@ -19,7 +20,8 @@
 "use strict";
 const $=id=>document.getElementById(id),labels=["Amanecer","Mañana","Día","Tarde","Noche"];
 const stops=[{color:[221,128,163],night:.16},{color:[170,210,234],night:.03},{color:[230,246,255],night:0},{color:[224,144,99],night:.17},{color:[19,41,82],night:.70}];
-let viewer=null,route=null,animationId=0;
+let viewer=null,route=null,animationId=0,worldTerrain=null,originalImagery=null;
+let rawMode=false,flatMode=false,osmMode=false;
 const diagnostic={source:"sin iniciar",imageryErrors:0,terrainErrors:0,tilesPending:"?",tilesRendered:"?",lastError:"ninguno"};
 function safeDiagnostic(message){return String(message||"desconocido")
  .replace(/access_token=[^&\\s]+/gi,"access_token=[oculto]")
@@ -28,13 +30,17 @@ function safeDiagnostic(message){return String(message||"desconocido")
 function showDiagnostic(){
  $("diagnostics").textContent="Capa: "+diagnostic.source+" | Errores de imágenes: "+diagnostic.imageryErrors+
  " | Errores de terreno: "+diagnostic.terrainErrors+" | Solicitudes pendientes: "+diagnostic.tilesPending+
- " | Teselas renderizadas: "+diagnostic.tilesRendered+"\\nÚltimo error: "+diagnostic.lastError;
+ " | Teselas renderizadas: "+diagnostic.tilesRendered+
+ (viewer?" | Capas activas: "+viewer.imageryLayers.length+
+ " | Globo: "+viewer.scene.globe.show+
+ " | Cámara km: "+Math.round(viewer.camera.positionCartographic.height/1000):"")+
+ "\\nÚltimo error: "+diagnostic.lastError;
 }
 function interpolate(a,b,t){return a+(b-a)*t}
 function applyPhase(v){const value=Math.max(0,Math.min(100,Number(v))),index=Math.min(3,Math.floor(value/25)),t=(value-index*25)/25;
  const c=stops[index].color.map((x,i)=>Math.round(interpolate(x,stops[index+1].color[i],t)));
- $("tint").style.background="rgb("+c.join(",")+")";$("tint").style.opacity=value>=88?".30":value<=12?".35":".22";
- $("night").style.opacity=interpolate(stops[index].night,stops[index+1].night,t);
+ $("tint").style.background="rgb("+c.join(",")+")";$("tint").style.opacity=rawMode?"0":value>=88?".30":value<=12?".35":".22";
+ $("night").style.opacity=rawMode?"0":interpolate(stops[index].night,stops[index+1].night,t);
  $("phase-label").textContent=labels[Math.min(4,Math.round(value/25))];
  document.querySelectorAll("[data-stage]").forEach(b=>b.setAttribute("aria-pressed",Number(b.dataset.stage)===Math.round(value/25)?"true":"false"));
  if(viewer){
@@ -65,7 +71,7 @@ async function start(){const token=$("token").value.trim();if(!token){$("status"
    throw new Error("Comprobación del terreno (HTTP "+probe.status+"): "+advice);
  }
  Cesium.Ion.defaultAccessToken=token;
- const terrain=await Cesium.createWorldTerrainAsync();
+ const terrain=await Cesium.createWorldTerrainAsync();worldTerrain=terrain;
  // Evitar la dependencia del recurso ion de imágenes (asset 2): OSM es independiente.
  // Preferir fotografía aérea (asset 2 de Cesium ion) para reproducir el concepto.
  // Si la cuenta no tiene acceso, usar cartografía OSM e informar del fallback.
@@ -80,6 +86,7 @@ async function start(){const token=$("token").value.trim();if(!token){$("status"
    diagnostic.source="OpenStreetMap (respaldo)";showDiagnostic();
    imagery=new Cesium.ImageryLayer(new Cesium.OpenStreetMapImageryProvider({url:"https://tile.openstreetmap.org/"}));
  }
+ originalImagery=imagery;
  viewer=new Cesium.Viewer("map",{terrainProvider:terrain,baseLayer:imagery,animation:false,timeline:false,baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,fullscreenButton:false,infoBox:false,selectionIndicator:false});
  diagnostic.source=imageryMode;showDiagnostic();
  // Capturar errores reales de teselas, no solo el éxito inicial del proveedor.
@@ -98,6 +105,13 @@ async function start(){const token=$("token").value.trim();if(!token){$("status"
    diagnostic.tilesRendered=viewer.scene.globe.tilesRendered?.length??"?";
    showDiagnostic();
  });
+ // Asegurar que la capa elegida esté efectivamente montada en el visor.
+ if(viewer.imageryLayers.length===0)viewer.imageryLayers.add(imagery);
+ viewer.imageryLayers.get(0).show=true;
+ viewer.imageryLayers.get(0).alpha=1;
+ viewer.imageryLayers.get(0).brightness=1;
+ viewer.imageryLayers.get(0).contrast=1;
+ viewer.scene.globe.show=true;
  viewer.scene.globe.depthTestAgainstTerrain=false;
  viewer.scene.globe.enableLighting=false;
  viewer.scene.globe.dynamicAtmosphereLighting=false;
@@ -108,7 +122,9 @@ async function start(){const token=$("token").value.trim();if(!token){$("status"
  const coords=[];for(let i=0;i<=100;i++){let t=i/100;coords.push(Cesium.Cartesian3.fromDegrees(interpolate(cities[0].lon,cities[1].lon,t),interpolate(cities[0].lat,cities[1].lat,t),12000+Math.sin(Math.PI*t)*210000))}
  route=viewer.entities.add({polyline:{positions:coords,width:3,material:new Cesium.PolylineDashMaterialProperty({color:Cesium.Color.WHITE,dashLength:14})}});
  viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(-58,-28,4200000),duration:2.5});
- $("flight").disabled=false;$("reset").disabled=false;$("token").value="";$("status").textContent="Visor inicializado con "+imageryMode+". Comprueba el diagnóstico de teselas antes de considerar cargado el mapa.";
+ $("flight").disabled=false;$("reset").disabled=false;
+ $("raw").disabled=false;$("flat").disabled=false;$("osm").disabled=false;
+ $("token").value="";$("status").textContent="Visor inicializado con "+imageryMode+". Comprueba el diagnóstico de teselas antes de considerar cargado el mapa.";
  applyPhase($("phase").value);
  }catch(err){const message=err?.message||String(err);
  $("status").textContent="No se pudo cargar el terreno: "+message.replaceAll(token,"[token oculto]");
@@ -120,5 +136,33 @@ $("flight").addEventListener("click",()=>{if(!viewer)return;cancelAnimationFrame
  function frame(now){const t=Math.min(1,(now-startTime)/duration),lon=interpolate(cities[0].lon,cities[1].lon,t),lat=interpolate(cities[0].lat,cities[1].lat,t);
  viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(lon,lat,850000),orientation:{heading:0,pitch:Cesium.Math.toRadians(-60),roll:0}});
  if(t<1)animationId=requestAnimationFrame(frame)}animationId=requestAnimationFrame(frame)});
+$("raw").addEventListener("click",()=>{
+ if(!viewer)return;rawMode=!rawMode;
+ $("raw").textContent=rawMode?"1 · Restaurar filtros":"1 · Sin filtros";
+ viewer.scene.globe.enableLighting=false;
+ viewer.scene.globe.atmosphereLightIntensity=0;
+ applyPhase($("phase").value);showDiagnostic();
+});
+$("flat").addEventListener("click",()=>{
+ if(!viewer)return;flatMode=!flatMode;
+ viewer.terrainProvider=flatMode?new Cesium.EllipsoidTerrainProvider():worldTerrain;
+ $("flat").textContent=flatMode?"2 · Restaurar relieve":"2 · Terreno plano";
+ showDiagnostic();
+});
+$("osm").addEventListener("click",()=>{
+ if(!viewer)return;
+ osmMode=!osmMode;
+ const layer=osmMode?new Cesium.ImageryLayer(new Cesium.OpenStreetMapImageryProvider({url:"https://tile.openstreetmap.org/"})):originalImagery;
+ viewer.imageryLayers.removeAll(false);
+ viewer.imageryLayers.add(layer);
+ diagnostic.source=osmMode?"OpenStreetMap (prueba directa)":"Bing Maps Aerial (prueba directa)";
+ $("osm").textContent=osmMode?"3 · Restaurar satélite":"3 · Mapa OSM";
+ layer.imageryProvider.errorEvent.addEventListener(err=>{
+  diagnostic.imageryErrors++;
+  diagnostic.lastError="Capa de prueba: "+safeDiagnostic(err?.message||err?.error?.message||err);
+  showDiagnostic();
+ });
+ showDiagnostic();
+});
 applyPhase(50);
 </script></body></html>
