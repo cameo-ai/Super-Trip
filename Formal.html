@@ -686,6 +686,7 @@ function renderLeg(ctx,ms,still,index,overall){
 
   const selectedSolar=trip.timeOfDay&&trip.timeOfDay!=="auto"?trip.timeOfDay:$("day-night").value;
   activeSolar=solarAt(solarValue(selectedSolar,overall));
+  if(selectedSolar==="cycle"&&$("solar-position")){$("solar-position").value=Math.round(activeSolar.value);updateSolarLabel();}
   drawMap(ctx,camera,zoom,progress,distance,point,ms,still);
   const x=180+(point.x-camera.x)*zoom,y=345+(point.y-camera.y)*zoom;
   const airborne=mode===modes.avion?Math.sin(Math.PI*progress):0;
