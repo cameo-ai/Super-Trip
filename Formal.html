@@ -68,7 +68,7 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
         </label>
         <p id="music-status" role="status">Opcional · el archivo se procesa en este navegador.</p>
       </div>
-      <p class="status">Escribe una ciudad o código de aeropuerto y selecciona una sugerencia. Bus, automóvil y barco utilizan los recorridos incorporados.</p>
+      <p class="status">Escribe una ciudad o código de aeropuerto y selecciona una sugerencia. Bus y automóvil admiten trayectorias ilustrativas cuando no existe un trazado incorporado. Barco utiliza recorridos incorporados.</p>
       <datalist id="destinations"></datalist>
       <div id="legs">
         <fieldset class="leg">
@@ -223,6 +223,33 @@ function findRoute(from,to,key){
     if((!forward&&!reverse)||!entry.modes.includes(key))continue;
     const points=reverse?entry.points.slice().reverse():entry.points.slice();
     return {from:reverse?entry.to:entry.from,to:reverse?entry.from:entry.to,points,places:entry.places||[],transfer:entry.transfer||null,osm:!!entry.osm,efe:!!entry.efe,reverse};
+  }
+  // Respaldo visual para viajes terrestres sin geometría incorporada.
+  // No representa carreteras verificadas y nunca se etiqueta como ruta OSM.
+  if(key==="bus"||key==="automovil"){
+    const locate=input=>{
+      const aliases={"rio":"rio de janeiro","rio janeiro":"rio de janeiro","rio de janeiro brasil":"rio de janeiro",
+        "brasilia":"brasilia","santiago chile":"santiago","santiago de chile":"santiago",
+        "concepcion chile":"concepcion","chillan chile":"chillan"};
+      const wanted=aliases[input]||input;
+      const airports=[...airCatalog,...regionalAirports];
+      const match=airports.find(([code,city])=>normal(code)===wanted||normal(city)===wanted||normal(city+" ("+code+")")===wanted);
+      if(match)return {name:match[1],coords:match[2]};
+      const station=efeStations.find(x=>normal(x.name)===wanted||(x.aliases||[]).some(a=>normal(a)===wanted));
+      return station?{name:station.name,coords:station.coords}:null;
+    };
+    const a=locate(start),b=locate(end);
+    if(a&&b&&normal(a.name)!==normal(b.name)){
+      // Curva suave meramente ilustrativa: no simula una carretera real.
+      const dx=b.coords[0]-a.coords[0],dy=b.coords[1]-a.coords[1];
+      const bend=Math.min(1.3,Math.hypot(dx,dy)*.07);
+      const points=Array.from({length:65},(_,i)=>{
+        const t=i/64,offset=Math.sin(Math.PI*t)*bend;
+        return [a.coords[0]+dx*t+(-dy/Math.max(0.001,Math.hypot(dx,dy)))*offset,
+          a.coords[1]+dy*t+(dx/Math.max(0.001,Math.hypot(dx,dy)))*offset];
+      });
+      return {from:a.name,to:b.name,points,places:[],approximate:true};
+    }
   }
   return null;
 }
@@ -462,7 +489,7 @@ function renderLeg(ctx,ms,still,index,overall){
   centered(ctx,`${Math.floor(mins/60)} h ${String(mins%60).padStart(2,"0")} min`,262,582,22,"#f5f7ff",145,850);
   pill(ctx,20,615,320,3,2,"#273a57");
   if(overall>0)pill(ctx,20,615,320*overall,3,2,"#ff9f1c");
-  centered(ctx,trip.efe?"ESTACIONES EFE · TRAZADO APROXIMADO":trip.osm?"NATURAL EARTH · © OpenStreetMap contributors":"RUTA ILUSTRATIVA · NATURAL EARTH",180,629,8,"#96afd1",310,750);
+  centered(ctx,trip.approximate?"TRAYECTORIA ILUSTRATIVA · NO ES RUTA VIAL REAL":trip.efe?"ESTACIONES EFE · TRAZADO APROXIMADO":trip.osm?"NATURAL EARTH · © OpenStreetMap contributors":"RUTA ILUSTRATIVA · NATURAL EARTH",180,629,8,"#96afd1",310,750);
 }
 
 
