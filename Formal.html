@@ -196,9 +196,17 @@ const normal=text=>text.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerC
 function findRoute(from,to,key){
   const start=normal(from),end=normal(to);
   if(key==="avion"){
-    const airportFor=input=>airCatalog.find(([code,city])=>normal(code)===input||normal(city)===input||normal(city+" ("+code+")")===input||
-      (code==="GIG"&&["rio","rio janeiro","rio de janeiro brasil"].includes(input))||
-      (code==="SCL"&&["santiago chile","santiago de chile"].includes(input)));
+    const airportFor=input=>{
+      const clean=input.replace(/ (brasil|chile)$/,"").trim();
+      const byCode=clean.match(/(?:^| )([a-z]{3})$/)?.[1];
+      if(byCode){
+        const airport=airCatalog.find(([code])=>normal(code)===byCode);
+        if(airport)return airport;
+      }
+      const aliases={"rio":"rio de janeiro","rio janeiro":"rio de janeiro","santiago de chile":"santiago"};
+      const city=aliases[clean]||clean;
+      return airCatalog.find(([code,name])=>normal(code)===city||normal(name)===city);
+    };
     const a=airportFor(start),b=airportFor(end);
     if(a&&b&&a!==b){
       const connection=(a[0]==="CWB"&&b[0]==="MCZ")||(a[0]==="MCZ"&&b[0]==="CWB")?airCatalog.find(row=>row[0]==="GRU"):null;
