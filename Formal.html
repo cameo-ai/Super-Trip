@@ -43,6 +43,7 @@ form button{justify-self:start}
 .music-settings p{margin:0;color:#9eb3d3;font-size:12px;overflow-wrap:anywhere}
 input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;background:#2a4263;color:#fff;margin-right:8px}
 .trip-timeline{margin:12px 0 10px;padding:12px 14px;border:1px solid #9b9b9b55;border-radius:14px}.trip-timeline label{display:block;font-size:.88rem;font-weight:650;margin-bottom:8px}.trip-timeline input[type=range]{display:block;width:100%;cursor:pointer;accent-color:#ff9f1c}.trip-timeline input[type=range]:disabled{cursor:not-allowed;opacity:.5}.trip-time{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums;font-size:.83rem;margin-top:5px}
+.music-advanced{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:12px}.music-advanced label{display:flex;flex-direction:column;gap:5px;font-size:.85rem}.music-advanced input[type=range]{width:100%;accent-color:#ff9f1c}.music-advanced input[type=number]{max-width:100%;box-sizing:border-box}
 </style>
 </head>
 <body>
@@ -72,6 +73,17 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
         <label>Música de fondo (MP3)
           <input id="music" type="file" accept=".mp3,audio/mpeg">
         </label>
+        <div class="music-advanced">
+          <label>Volumen <output id="music-volume-value" for="music-volume">80 %</output>
+            <input id="music-volume" type="range" min="0" max="100" step="1" value="80">
+          </label>
+          <label>Fade in (segundos)
+            <input id="music-fade-in" type="number" min="0" max="30" step="0.5" value="2">
+          </label>
+          <label>Comenzar música en el segundo
+            <input id="music-start" type="number" min="0" max="300" step="0.5" value="0">
+          </label>
+        </div>
         <p id="music-status" role="status">Opcional · el archivo se procesa en este navegador.</p>
       </div>
       <p class="status">Selecciona una ciudad de Chile o Brasil (por ejemplo, Maceió · Brasil). Para vuelos también puedes utilizar códigos de aeropuerto. Bus y automóvil admiten trayectorias ilustrativas cuando no existe un trazado incorporado. Barco utiliza recorridos incorporados.</p>
@@ -306,6 +318,10 @@ function syncTimeline(){
 }
 
 const musicInput=$("music"),musicStatus=$("music-status");
+const musicVolume=$("music-volume"),musicVolumeValue=$("music-volume-value");
+const musicFadeIn=$("music-fade-in"),musicStart=$("music-start");
+const audioSetting=(input,fallback)=>{const n=Number(input.value);return Number.isFinite(n)?Math.max(0,n):fallback;};
+
 let itinerary=[],trip=null, elapsed=0, previous=null, frame=0, playing=false, exporting=false;
 const durationInput=$("video-duration"),applyDurationButton=$("apply-duration");
 const totalDuration=()=>itinerary.length?Number(durationInput.value)*1000:0;
@@ -576,6 +592,7 @@ function controls(){
   for(const button of $("legs").querySelectorAll(".leg-remove"))button.disabled=exporting;
   $("create").disabled=exporting;
   musicInput.disabled=exporting;
+  for(const input of [musicVolume,musicFadeIn,musicStart])input.disabled=exporting;
   exportButton.disabled||=musicLoading;
   playButton.textContent=playing?"Pausar":elapsed>=totalDuration()?"Reproducir":elapsed?"Continuar":"Reproducir";
   syncTimeline();
@@ -665,31 +682,51 @@ function stopMusic(){
 }
 function startMusic(offset,destination){
   stopMusic();
-  if(!musicBuffer)return;
+  if(!musicBuffer||!audioContext)return;
+  const startMs=Math.min(totalDuration(),audioSetting(musicStart,0)*1000);
+  const volume=Math.min(1,audioSetting(musicVolume,.8)/100);
+  const fadeInMs=audioSetting(musicFadeIn,2)*1000;
+  const fadeOutMs=Math.min(5000,totalDuration()*.15);
+  const endMs=totalDuration();
+  if(offset>=endMs||startMs>=endMs||volume<=0)return;
   const source=audioContext.createBufferSource();
   const gain=audioContext.createGain();
   source.buffer=musicBuffer;source.loop=true;
   source.connect(gain);gain.connect(destination);
-  const remaining=Math.max(0,(totalDuration()-offset)/1000);
-  const fadeSeconds=Math.min(5,totalDuration()/1000*.15);
-  const fadeStart=Math.max(0,(totalDuration()/1000)-fadeSeconds-offset/1000);
   const now=audioContext.currentTime;
-  gain.gain.setValueAtTime(1,now);
-  if(remaining<=fadeSeconds){
-    const fraction=fadeSeconds>0?Math.max(0,Math.min(1,remaining/fadeSeconds)):0;
-    gain.gain.setValueAtTime(fraction,now);
-    gain.gain.linearRampToValueAtTime(0,now+remaining);
-  }else{
-    gain.gain.setValueAtTime(1,now+fadeStart);
-    gain.gain.linearRampToValueAtTime(0,now+remaining);
+  const audibleStart=Math.max(offset,startMs);
+  const fadeOutStart=endMs-fadeOutMs;
+  // Ganancia continua para cualquier posición, incluso después de arrastrar la línea de tiempo.
+  const level=ms=>{
+    if(ms<startMs||ms>=endMs)return 0;
+    const fadeIn=fadeInMs>0?Math.min(1,(ms-startMs)/fadeInMs):1;
+    const fadeOut=fadeOutMs>0?Math.min(1,(endMs-ms)/fadeOutMs):1;
+    return volume*Math.max(0,Math.min(fadeIn,fadeOut));
+  };
+  const timeline=[audibleStart,endMs];
+  for(const t of [startMs,startMs+fadeInMs,fadeOutStart,endMs]){
+    if(t>audibleStart&&t<endMs)timeline.push(t);
   }
-  source.start(0,(offset/1000)%musicBuffer.duration);musicSource=source;
+  timeline.sort((a,b)=>a-b);
+  gain.gain.setValueAtTime(level(audibleStart),now+(audibleStart-offset)/1000);
+  for(const t of timeline.slice(1)){
+    gain.gain.linearRampToValueAtTime(level(t),now+(t-offset)/1000);
+  }
+  source.start(now+(audibleStart-offset)/1000,((audibleStart-startMs)/1000)%musicBuffer.duration);
+  source.stop(now+(endMs-offset)/1000+.02);
+  musicSource=source;
 }
 function previewMusic(){
   if(!musicBuffer)return;
   audioContext.resume().then(()=>{
     if(playing&&!exporting)startMusic(elapsed,audioContext.destination);
   }).catch(()=>{musicStatus.textContent="Pulsa Reproducir para habilitar el audio.";});
+}
+for(const input of [musicVolume,musicFadeIn,musicStart]){
+  input.addEventListener("input",()=>{
+    musicVolumeValue.textContent=musicVolume.value+" %";
+    if(playing&&!exporting)previewMusic();
+  });
 }
 musicInput.addEventListener("change",async()=>{
   const selection=++musicSelection;
