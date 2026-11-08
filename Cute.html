@@ -570,6 +570,13 @@ function renderLeg(ctx,ms,still,index,overall){
   const lighting=$("day-night").value;
   const darkness=lighting==="night"?.34:lighting==="cycle"?.34*(.5-.5*Math.cos(overall*Math.PI*2)):0;
   if(darkness){ctx.fillStyle=`rgba(4,12,35,${darkness})`;ctx.fillRect(0,0,W,H);}
+  // Contador de kilómetros aproximados según los puntos geográficos del trazado.
+  const geo=trip.geoKm||0;
+  const shown=Math.round(geo*progress);
+  ctx.save();ctx.globalAlpha=.94;
+  pill(ctx,92,487,176,31,11,"#fcfff3ed");
+  centered(ctx,`${trip.routeKind==="fictional"?"≈ ":""}${new Intl.NumberFormat("es-CL").format(shown)} km`,180,505,16,"#194440",160);
+  ctx.restore();
   const fade=ctx.createLinearGradient(0,0,0,120);fade.addColorStop(0,"#f7fbf2");fade.addColorStop(1,"#f7fbf200");
   ctx.fillStyle=fade;ctx.fillRect(0,0,W,120);
   const modeTitle=trip.efe?"EN TREN EFE":trip.transfer?"TERRESTRE Y MARÍTIMO":`EN ${mode.name.toLocaleUpperCase("es")}`;
@@ -676,13 +683,18 @@ function configure(autoplay){
       :key==="avion"?airPoints(found.points[0],found.points.at(-1)):found.points;
 
     const route=makeRoute(coords);
+    const geoKm=coords.slice(1).reduce((total,[lon,lat],i)=>{
+      const [prevLon,prevLat]=coords[i],rad=Math.PI/180;
+      const a=Math.sin((lat-prevLat)*rad/2)**2+Math.cos(lat*rad)*Math.cos(prevLat*rad)*Math.sin((lon-prevLon)*rad/2)**2;
+      return total+12742*Math.asin(Math.sqrt(Math.min(1,a)));
+    },0);
     let transfer=null;
     if(kind==="real"&&found.transfer){
       const port=project(found.transfer.coords);
       const at=route.points.findIndex(p=>p.x===port.x&&p.y===port.y);
       if(at>0)transfer={...found.transfer,index:at};
     }
-    next.push({...found,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photo:row._arrivalPhoto||null,routeKind:kind,key,mode:modes[key],route,transfer});
+    next.push({...found,seconds:Number(row.querySelector('[name="leg-seconds"]').value)||null,photo:row._arrivalPhoto||null,routeKind:kind,key,mode:modes[key],route,transfer,geoKm});
   }
   stop();schedule(next,durationInput.valueAsNumber);itinerary=next;
   rows.forEach((row,index)=>{
