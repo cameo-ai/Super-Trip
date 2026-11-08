@@ -42,6 +42,7 @@ form button{justify-self:start}
 .music-settings{display:grid;gap:6px;padding:9px;border:1px solid #293d5c;border-radius:10px}
 .music-settings p{margin:0;color:#9eb3d3;font-size:12px;overflow-wrap:anywhere}
 input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;background:#2a4263;color:#fff;margin-right:8px}
+.trip-timeline{margin:12px 0 10px;padding:12px 14px;border:1px solid #9b9b9b55;border-radius:14px}.trip-timeline label{display:block;font-size:.88rem;font-weight:650;margin-bottom:8px}.trip-timeline input[type=range]{display:block;width:100%;cursor:pointer;accent-color:#ff9f1c}.trip-timeline input[type=range]:disabled{cursor:not-allowed;opacity:.5}.trip-time{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums;font-size:.83rem;margin-top:5px}
 </style>
 </head>
 <body>
@@ -50,6 +51,11 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
     <button id="play" type="button" disabled>Reproducir</button>
     <button id="restart" type="button" disabled>Repetir</button>
     <button id="export" class="primary" type="button" disabled>Descargar video</button>
+  </div>
+  <div class="trip-timeline" aria-label="Línea de tiempo del video">
+    <label for="trip-seek">Línea de tiempo · arrastra para revisar el viaje</label>
+    <input id="trip-seek" type="range" min="0" max="30000" step="50" value="0" disabled aria-label="Posición del video">
+    <div class="trip-time"><output id="trip-current" for="trip-seek">00:00</output><span id="trip-total">00:30</span></div>
   </div>
   <p id="status" class="status" role="status">Preparando el itinerario…</p>
   <noscript>Descarga y abre el HTML directamente en tu navegador con JavaScript habilitado.</noscript>
@@ -287,6 +293,18 @@ const countryNames=[["CHILE",[-71.8,-28]],["ARGENTINA",[-64.2,-39]],["BRASIL",[-
 const scene=$("scene"), view=scene.getContext("2d");
 const playButton=$("play"), restartButton=$("restart"), exportButton=$("export"), status=$("status");
 const reduced=matchMedia("(prefers-reduced-motion: reduce)");
+const seekInput=$("trip-seek"),seekCurrent=$("trip-current"),seekTotal=$("trip-total");
+const timeLabel=ms=>{const seconds=Math.floor(Math.max(0,ms)/1000);return String(Math.floor(seconds/60)).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");};
+function syncTimeline(){
+  const total=totalDuration();
+  seekInput.disabled=!itinerary.length||exporting;
+  seekInput.max=String(total);
+  seekInput.value=String(Math.max(0,Math.min(total,elapsed)));
+  seekCurrent.textContent=timeLabel(elapsed);
+  seekTotal.textContent=timeLabel(total);
+  seekInput.setAttribute("aria-valuetext",timeLabel(elapsed)+" de "+timeLabel(total));
+}
+
 const musicInput=$("music"),musicStatus=$("music-status");
 let itinerary=[],trip=null, elapsed=0, previous=null, frame=0, playing=false, exporting=false;
 const durationInput=$("video-duration"),applyDurationButton=$("apply-duration");
@@ -560,6 +578,7 @@ function controls(){
   musicInput.disabled=exporting;
   exportButton.disabled||=musicLoading;
   playButton.textContent=playing?"Pausar":elapsed>=totalDuration()?"Reproducir":elapsed?"Continuar":"Reproducir";
+  syncTimeline();
 }
 function stop(){
   playing=false;previous=null;cancelAnimationFrame(frame);stopMusic();controls();
@@ -569,6 +588,7 @@ function animate(t){
   if(previous!==null)elapsed=Math.min(totalDuration(),elapsed+t-previous);
   previous=t;
   render(view,elapsed,reduced.matches);
+  syncTimeline();
   if(elapsed<totalDuration())frame=requestAnimationFrame(animate);
   else stop();
 }
@@ -781,6 +801,15 @@ async function download(){
   }
 }
 
+seekInput.addEventListener("input",()=>{
+  if(!itinerary.length||exporting)return;
+  const resume=playing;
+  if(resume)stop();
+  elapsed=Math.max(0,Math.min(totalDuration(),Number(seekInput.value)||0));
+  render(view,elapsed,reduced.matches);
+  controls();
+  if(resume&&elapsed<totalDuration())play();
+});
 playButton.addEventListener("click",()=>playing?stop():play());
 restartButton.addEventListener("click",()=>play(true));
 exportButton.addEventListener("click",download);
