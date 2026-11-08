@@ -45,6 +45,7 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
 .trip-timeline{margin:12px 0 10px;padding:12px 14px;border:1px solid #9b9b9b55;border-radius:14px}.trip-timeline label{display:block;font-size:.88rem;font-weight:650;margin-bottom:8px}.trip-timeline input[type=range]{display:block;width:100%;cursor:pointer;accent-color:#ff9f1c}.trip-timeline input[type=range]:disabled{cursor:not-allowed;opacity:.5}.trip-time{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums;font-size:.83rem;margin-top:5px}
 .music-advanced{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:12px}.music-advanced label{display:flex;flex-direction:column;gap:5px;font-size:.85rem}.music-advanced input[type=range]{width:100%;accent-color:#ff9f1c}.music-advanced input[type=number]{max-width:100%;box-sizing:border-box}
 .export-formats{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:10px 0}.export-formats span{font-weight:650;font-size:.86rem}.export-formats button{font-size:.8rem;padding:7px 9px}.export-formats button[aria-pressed=true]{outline:2px solid #ff9f1c;outline-offset:1px}
+.trip-library{margin:14px 0;padding:13px;border:1px solid #8796a655;border-radius:13px}.trip-library-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.trip-library-items{display:grid;gap:8px;margin-top:10px}.trip-library-item{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:9px;border:1px solid #8796a644;border-radius:9px}.trip-library-item-info{min-width:140px;flex:1}.trip-library-item-info small{display:block;opacity:.75}.trip-library-actions{display:flex;flex-wrap:wrap;gap:5px}.trip-library-actions button{padding:6px 9px;font-size:.8rem}.trip-library-note{font-size:.78rem;opacity:.75;margin:8px 0 0}
 </style>
 </head>
 <body>
@@ -57,6 +58,11 @@ input::file-selector-button{border:0;border-radius:5px;padding:4px 8px;backgroun
     <input id="project-file" type="file" accept=".json,application/json" hidden>
     <button id="export" class="primary" type="button" disabled>Descargar video</button>
   </div>
+  <section class="trip-library" aria-label="Biblioteca de viajes">
+    <div class="trip-library-head"><strong>Mis viajes guardados</strong><button id="library-save" type="button">Guardar viaje con nombre</button></div>
+    <div id="library-items" class="trip-library-items" aria-live="polite"></div>
+    <p class="trip-library-note">Los viajes se guardan en este navegador. La música MP3 se vuelve a seleccionar al abrirlos.</p>
+  </section>
   <div class="trip-timeline" aria-label="Línea de tiempo del video">
     <label for="trip-seek">Línea de tiempo · arrastra para revisar el viaje</label>
     <input id="trip-seek" type="range" min="0" max="30000" step="50" value="0" disabled aria-label="Posición del video">
@@ -1023,9 +1029,9 @@ function rememberLastTrip(){
     }));
   }catch(error){console.warn("No se pudo recordar el último viaje.",error);}
 }
-function restoreLastTrip(){
+function restoreLastTrip(snapshot){
   try{
-    const saved=JSON.parse(localStorage.getItem(lastTripKey)||"null");
+    const saved=snapshot||JSON.parse(localStorage.getItem(lastTripKey)||"null");
     if(!saved||saved.version!==1||!Array.isArray(saved.legs)||!saved.legs.length||saved.legs.length>100)return false;
     const list=$("legs");
     while(list.children.length>1)list.lastElementChild.remove();
@@ -1061,6 +1067,86 @@ for(const button of document.querySelectorAll("[data-format]"))
 for(const input of [musicVolume,musicFadeIn,musicStart])
   input.addEventListener("input",rememberLastTrip);
 projectFile.addEventListener("change",()=>queueMicrotask(rememberLastTrip));
+// Biblioteca local de viajes con nombres propios; independiente para Cute y Formal.
+const libraryKey="super-trip-library-formal-v1";
+const libraryItems=$("library-items");
+const libraryRead=()=>{
+  try{
+    const value=JSON.parse(localStorage.getItem(libraryKey)||"[]");
+    return Array.isArray(value)?value.filter(x=>x&&typeof x.id==="string"&&typeof x.name==="string"&&x.snapshot):[];
+  }catch{return [];}
+};
+const libraryWrite=items=>localStorage.setItem(libraryKey,JSON.stringify(items));
+const snapshotTrip=()=>{
+  const legs=[...$("legs").children].map(row=>{
+    const [from,to,mode]=legFields(row);
+    return {origen:from.value,destino:to.value,transporte:mode.value,routeKind:routeKind(row).value};
+  });
+  return {version:1,legs,duration:durationInput.value,format:selectedFormat,
+    audio:{volume:musicVolume.value,fadeIn:musicFadeIn.value,start:musicStart.value,
+      filename:musicInput.files?.[0]?.name||""}};
+};
+function libraryRender(){
+  libraryItems.replaceChildren();
+  const items=libraryRead();
+  if(!items.length){const p=document.createElement("p");p.textContent="Todavía no hay viajes guardados.";libraryItems.append(p);return;}
+  for(const item of items){
+    const row=document.createElement("div");row.className="trip-library-item";
+    const info=document.createElement("div");info.className="trip-library-item-info";
+    const title=document.createElement("strong");title.textContent=item.name;
+    const detail=document.createElement("small");
+    detail.textContent=`${item.snapshot.legs.length} tramo(s) · ${item.snapshot.duration} s`;
+    info.append(title,detail);
+    const actions=document.createElement("div");actions.className="trip-library-actions";
+    for(const [label,action] of [["Abrir","open"],["Duplicar","duplicate"],["Renombrar","rename"],["Eliminar","delete"]]){
+      const button=document.createElement("button");button.type="button";button.textContent=label;
+      button.addEventListener("click",()=>libraryAction(action,item.id));actions.append(button);
+    }
+    row.append(info,actions);libraryItems.append(row);
+  }
+}
+function libraryAction(action,id){
+  if(exporting)return;
+  const items=libraryRead(),item=items.find(x=>x.id===id);
+  if(!item)return;
+  if(action==="open"){
+    if(!window.confirm(`¿Abrir «${item.name}»? Se reemplazará el viaje que estás editando. Puedes guardarlo antes.`))return;
+    stop();
+    if(!restoreLastTrip(item.snapshot)){status.textContent="No se pudo abrir este viaje.";return;}
+    musicInput.value="";musicInput.dispatchEvent(new Event("change"));
+    if(item.snapshot.audio?.filename)musicStatus.textContent="MP3 anterior: "+item.snapshot.audio.filename+" · vuelve a seleccionarlo.";
+    rememberLastTrip();
+    if(!configure(false))status.textContent="Viaje abierto. Revisa los tramos que no estén disponibles.";
+    else status.textContent=`Viaje «${item.name}» abierto para editar.`;
+    $("editor").open=true;
+    return;
+  }
+  if(action==="delete"){
+    if(!window.confirm(`¿Eliminar «${item.name}» de la biblioteca?`))return;
+    libraryWrite(items.filter(x=>x.id!==id));
+  }else{
+    const name=window.prompt(action==="rename"?"Nuevo nombre del viaje:":"Nombre de la copia:",action==="rename"?item.name:item.name+" (copia)");
+    if(name===null)return;
+    const clean=name.trim().slice(0,90);if(!clean)return;
+    if(action==="rename")item.name=clean;
+    else items.unshift({id:crypto.randomUUID(),name:clean,snapshot:structuredClone(item.snapshot)});
+    libraryWrite(items);
+  }
+  libraryRender();
+}
+$("library-save").addEventListener("click",()=>{
+  if(exporting)return;
+  const name=window.prompt("Nombre para guardar este viaje:","Vacaciones Brasil 2027");
+  if(name===null)return;
+  const clean=name.trim().slice(0,90);if(!clean)return;
+  try{
+    const items=libraryRead();
+    items.unshift({id:crypto.randomUUID(),name:clean,snapshot:snapshotTrip()});
+    libraryWrite(items);libraryRender();
+    status.textContent=`Viaje «${clean}» guardado en la biblioteca.`;
+  }catch(error){status.textContent="No se pudo guardar en este navegador: "+(error.message||error);}
+});
+libraryRender();
 seekInput.addEventListener("input",()=>{
   if(!itinerary.length||exporting)return;
   const resume=playing;
