@@ -437,7 +437,26 @@ $("flight").addEventListener("click",()=>{
  clearBus();
  if(route)route.show=false;
  let activeIndex=-1,progress=0,previousLon=legs[0].a.lon,previousLat=legs[0].a.lat;
- function beginLeg(index){
+ function screenAlignedVehicleRotation(a,b,getProgress){
+ // Cesium billboards rotate in screen space. Project nearby route points
+ // so the aircraft nose follows the visible route even when camera tilts or turns.
+ let previous=0;
+ return new Cesium.CallbackProperty(()=>{
+  const t=Math.min(.995,Math.max(.005,getProgress()));
+  const before=tripPoint(a,b,Math.max(0,t-.005),"Avión");
+  const after=tripPoint(a,b,Math.min(1,t+.005),"Avión");
+  const p=viewer.scene.cartesianToCanvasCoordinates(before);
+  const q=viewer.scene.cartesianToCanvasCoordinates(after);
+  if(!p||!q)return previous;
+  const dx=q.x-p.x,dy=q.y-p.y;
+  if(dx*dx+dy*dy<.0001)return previous;
+  const desired=-Math.atan2(dx,-dy);
+  const diff=Math.atan2(Math.sin(desired-previous),Math.cos(desired-previous));
+  previous+=diff;
+  return previous;
+ },false);
+}
+function beginLeg(index){
   if(plane)viewer.entities.remove(plane);
   if(trail)viewer.entities.remove(trail);
   clearBus();
@@ -445,7 +464,7 @@ $("flight").addEventListener("click",()=>{
   const leg=legs[index];
   const heading=Math.atan2(leg.b.lon-leg.a.lon,leg.b.lat-leg.a.lat);
   plane=viewer.entities.add({position:new Cesium.CallbackProperty(()=>tripPoint(leg.a,leg.b,progress,leg.mode),false),
-   billboard:{image:modeIcons[leg.mode],width:leg.mode==="Avión"?72:58,height:leg.mode==="Avión"?72:58,rotation:leg.mode==="Avión"?-heading:0,verticalOrigin:Cesium.VerticalOrigin.CENTER,disableDepthTestDistance:Number.POSITIVE_INFINITY}});
+   billboard:{image:modeIcons[leg.mode],width:leg.mode==="Avión"?72:58,height:leg.mode==="Avión"?72:58,rotation:leg.mode==="Avión"?screenAlignedVehicleRotation(leg.a,leg.b,()=>progress):0,verticalOrigin:Cesium.VerticalOrigin.CENTER,disableDepthTestDistance:Number.POSITIVE_INFINITY}});
   trail=viewer.entities.add({polyline:{positions:new Cesium.CallbackProperty(()=>{
    const points=[];const count=Math.max(1,Math.ceil(progress*120));
    for(let i=0;i<=count;i++)points.push(tripPoint(leg.a,leg.b,Math.min(progress,i/120),leg.mode));
