@@ -385,7 +385,7 @@ spriteImage.onload=()=>{
  for(const [mode,[x,y,w,h]] of Object.entries(cuteRects)){
   const canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
   canvas.getContext("2d").drawImage(spriteImage,x,y,w,h,0,0,w,h);
-  modeIcons[mode]=canvas.toDataURL("image/png");
+  modeIcons[mode]=mode==="Avión"?"./assets/vehicles/avion-vista-superior.svg":canvas.toDataURL("image/png");
  }
  refreshTransportComparison();
 };
