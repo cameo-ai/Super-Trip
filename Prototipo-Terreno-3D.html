@@ -20,7 +20,7 @@
 <script>
 "use strict";
 const $=id=>document.getElementById(id),labels=["Amanecer","Mañana","Día","Tarde","Noche"];
-const stops=[{color:[255,166,108],night:.10,brightness:.68,contrast:1.10,saturation:.88},{color:[199,224,255],night:.015,brightness:.92,contrast:1.04,saturation:1.02},{color:[255,255,255],night:0,brightness:1,contrast:1,saturation:1},{color:[255,159,94],night:.16,brightness:.65,contrast:1.13,saturation:.90},{color:[16,34,71],night:.56,brightness:.24,contrast:1.18,saturation:.65}];
+const stops=[{color:[221,128,163],night:.16},{color:[170,210,234],night:.03},{color:[230,246,255],night:0},{color:[224,144,99],night:.17},{color:[19,41,82],night:.70}];
 let viewer=null,route=null,animationId=0,worldTerrain=null,originalImagery=null;
 let rawMode=false,flatMode=false,osmMode=false;
 const diagnostic={source:"sin iniciar",imageryErrors:0,terrainErrors:0,tilesPending:"?",tilesRendered:"?",lastError:"ninguno"};
@@ -40,28 +40,20 @@ function showDiagnostic(){
 function interpolate(a,b,t){return a+(b-a)*t}
 function applyPhase(v){const value=Math.max(0,Math.min(100,Number(v))),index=Math.min(3,Math.floor(value/25)),t=(value-index*25)/25;
  const c=stops[index].color.map((x,i)=>Math.round(interpolate(x,stops[index+1].color[i],t)));
- $("tint").style.background="rgb("+c.join(",")+")";$("tint").style.opacity=rawMode?"0":value>=88?".20":value<=12?".18":".10";
+ $("tint").style.background="rgb("+c.join(",")+")";$("tint").style.opacity=rawMode?"0":value>=88?".30":value<=12?".35":".22";
  $("night").style.opacity=rawMode?"0":interpolate(stops[index].night,stops[index+1].night,t);
  $("phase-label").textContent=labels[Math.min(4,Math.round(value/25))];
  document.querySelectorAll("[data-stage]").forEach(b=>b.setAttribute("aria-pressed",Number(b.dataset.stage)===Math.round(value/25)?"true":"false"));
  if(viewer){
-   // Iluminación cinematográfica estable, independiente de la hora astronómica.
-   // Modificar la fotografía satelital, no solo una capa superpuesta.
-   const a=stops[index],b=stops[index+1];
-   for(let i=0;i<viewer.imageryLayers.length;i++){
-     const layer=viewer.imageryLayers.get(i);
-     layer.brightness=rawMode?1:interpolate(a.brightness,b.brightness,t);
-     layer.contrast=rawMode?1:interpolate(a.contrast,b.contrast,t);
-     layer.saturation=rawMode?1:interpolate(a.saturation,b.saturation,t);
-   }
+   // La iluminación solar astronómica oscurecía el terreno según la hora real.
+   // Mantener la superficie visible y aplicar los cinco estados mediante color.
    viewer.scene.globe.enableLighting=false;
    viewer.scene.globe.dynamicAtmosphereLighting=false;
    viewer.scene.globe.dynamicAtmosphereLightingFromSun=false;
-   viewer.scene.requestRender();
  }
 }
 $("phase").addEventListener("input",e=>applyPhase(e.target.value));
-document.querySelectorAll("[data-stage]").forEach(b=>b.addEventListener("click",()=>{$("phase").value=Number(b.dataset.stage)*25;applyPhase($("phase").value)}));
+document.querySelectorAll("[data-stage]").forEach(b=>b.addEventListener("click",()=>{if(rawMode){rawMode=false;$("raw").textContent="1 · Sin filtros";}$("phase").value=Number(b.dataset.stage)*25;applyPhase($("phase").value)}));
 const cities=[{name:"Santiago",lon:-70.6693,lat:-33.4489},{name:"Río de Janeiro",lon:-43.2096,lat:-22.9068}];
 function positions(){return cities.map(c=>Cesium.Cartesian3.fromDegrees(c.lon,c.lat,13000))}
 async function start(){const token=$("token").value.trim();if(!token){$("status").textContent="Se necesita un token válido para solicitar terreno 3D.";return;}
@@ -171,7 +163,6 @@ $("osm").addEventListener("click",()=>{
   diagnostic.lastError="Capa de prueba: "+safeDiagnostic(err?.message||err?.error?.message||err);
   showDiagnostic();
  });
- applyPhase($("phase").value);
  showDiagnostic();
 });
 applyPhase(50);
