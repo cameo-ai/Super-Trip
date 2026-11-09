@@ -4,17 +4,50 @@
 <link href="../vendor/Cesium/Widgets/widgets.css" rel="stylesheet">
 <style>
 *{box-sizing:border-box}body{margin:0;background:#071327;color:#f5f8ff;font:14px system-ui,Arial}#map{position:absolute;inset:0}.toolbar{position:absolute;top:14px;left:14px;right:14px;max-width:510px;background:#0b1730ed;padding:17px;border:1px solid #3b547b;border-radius:16px;box-shadow:0 12px 35px #0007}.toolbar h1{font-size:18px;margin:0 0 5px}.toolbar p{font-size:12px;color:#b4c5dd;margin:0 0 12px}.fields{display:flex;gap:7px;flex-wrap:wrap}input,button,select{font:inherit;border-radius:9px;border:1px solid #506b90;padding:10px;background:#152846;color:white}input{flex:1;min-width:170px}button{cursor:pointer;background:#225bba;border-color:#3479e0}button:disabled{opacity:.5;cursor:default}.stages{display:flex;gap:5px;margin-top:12px}.stages button{flex:1;font-size:12px;padding:9px 3px;background:#1a2c48}.stages button[aria-pressed=true]{background:#1760ba;outline:2px solid #77b7ff}.control{display:flex;align-items:center;gap:8px;margin-top:12px}.control input{min-width:0;width:100%;padding:0;accent-color:#ffbd66}#status{margin-top:9px;font-size:12px;color:#c9d7e8}.tint{position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light;opacity:0;transition:background 450ms,opacity 450ms}.night{position:absolute;inset:0;pointer-events:none;background:#071630;opacity:0;transition:opacity 450ms}.credit{position:absolute;right:10px;bottom:8px;font-size:10px;color:white;background:#071327aa;padding:4px 7px;border-radius:5px}#map .cesium-viewer-bottom{bottom:25px}@media(max-width:550px){.toolbar{top:8px;left:8px;right:8px;padding:12px}.toolbar h1{font-size:15px}.stages button{font-size:10px}}
- .trip-editor{margin-top:12px;padding:12px;border:1px solid #38527b;border-radius:12px;background:#10223e}.trip-editor h2{font-size:15px;margin:0 0 10px}.trip-list{display:grid;gap:18px;max-height:45vh;overflow-y:auto;padding:4px 2px 8px}.trip-leg{border:1px solid #4267a3;border-radius:12px;padding:12px;background:#142643;display:grid;gap:10px;min-width:0}.trip-leg legend{font-weight:800;font-size:13px;color:#8ac1ff;padding:0 6px}.trip-leg label{display:grid;gap:5px;font-size:12px;font-weight:700}.trip-leg select{width:100%;min-width:0}.trip-leg .leg-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}.trip-leg .leg-remove{justify-self:end;font-size:12px;padding:6px 9px}.trip-actions{display:flex;gap:8px;margin-top:12px}.trip-actions button{flex:1}.trip-editor small{color:#b4c5dd;display:block;margin-top:9px}.toolbar{max-height:calc(100vh - 25px);overflow-y:auto}</style></head><body>
+ .trip-editor{margin-top:12px;padding:12px;border:1px solid #38527b;border-radius:12px;background:#10223e}.trip-editor h2{font-size:15px;margin:0 0 10px}.trip-list{display:grid;gap:18px;max-height:45vh;overflow-y:auto;padding:4px 2px 8px}.trip-leg{border:1px solid #4267a3;border-radius:12px;padding:12px;background:#142643;display:grid;gap:10px;min-width:0}.trip-leg legend{font-weight:800;font-size:13px;color:#8ac1ff;padding:0 6px}.trip-leg label{display:grid;gap:5px;font-size:12px;font-weight:700}.trip-leg select{width:100%;min-width:0}.trip-leg .leg-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}.trip-leg .leg-remove{justify-self:end;font-size:12px;padding:6px 9px}.trip-actions{display:flex;gap:8px;margin-top:12px}.trip-actions button{flex:1}.trip-editor small{color:#b4c5dd;display:block;margin-top:9px}.toolbar{max-height:calc(100vh - 25px);overflow-y:auto}
+/* Interfaz Super-Trip 3D inspirada en Cute: panel claro, tramos amplios y controles agrupados */
+body{background:#e9f2ea;color:#173c3a;font-family:system-ui,sans-serif}
+.toolbar{max-width:460px;background:#f8fcf7f5;color:#173c3a;border:1px solid #bfd5c7;box-shadow:0 12px 34px #1f4c3e32;padding:15px}
+.toolbar h1{color:#173c3a;font-size:19px}.toolbar p,.trip-editor small{color:#456459}
+.toolbar button{background:#fff;color:#173c3a;border:1px solid #b1cfc0;font-weight:750}
+.toolbar button:hover:not(:disabled){background:#e8f4ee}
+.toolbar #flight,.toolbar #start{background:#156655;color:#fff;border-color:#156655}
+.toolbar input,.toolbar select{background:#fff;color:#173c3a;border:1px solid #a3c2b2}
+.toolbar input[type=range]{accent-color:#25864b}
+.toolbar .stages button{background:#fff;color:#173c3a;border:1px solid #b1cfc0}
+.toolbar .stages button[aria-pressed=true]{background:#156655;color:white;outline:2px solid #a5d5b9}
+.trip-editor{background:#f8fcf7;border:1px solid #bfd5c7;padding:12px}
+.trip-editor h2{color:#173c3a}.trip-list{max-height:none;overflow:visible;gap:24px}
+.trip-leg{background:#f2f7ff;border:1px solid #9bbde8;padding:14px;gap:12px;box-shadow:0 3px 12px #234cc70d}
+.trip-leg legend{color:#234cc7}.trip-leg label{color:#173c3a}
+.trip-leg select,.trip-leg input{width:100%;min-width:0}
+#status{color:#295246}.toolbar #diagnostics{color:#456459!important}
+.cute-section{border:1px solid #bfd5c7;border-radius:13px;padding:12px;margin:12px 0;background:#f8fcf7}
+.cute-section h2{font-size:14px;margin:0 0 10px;color:#173c3a}
+.cute-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cute-grid label,.cute-section label{font-size:12px;font-weight:700;display:grid;gap:5px}
+.cute-grid input,.cute-section input{width:100%;min-width:0}
+.cute-muted{font-size:11px;color:#456459;margin-top:8px;display:block}
+.cute-actions{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
+.cute-actions button{font-size:12px;padding:9px}
+.cute-stage{position:absolute;top:12px;right:12px;max-width:calc(100% - 500px);pointer-events:none;background:#f8fcf7dd;color:#173c3a;padding:8px 13px;border-radius:12px;font-size:13px;font-weight:800}
+@media(max-width:850px){.cute-stage{display:none}.toolbar{max-width:min(460px,calc(100vw - 24px))}}
+</style></head><body>
 <div id="map"></div><div id="night" class="night"></div><div id="tint" class="tint"></div>
 <section class="toolbar"><h1>Super-Trip 3D</h1><p>Versión independiente para computador: mapas satelitales, relieve real y animaciones de viaje. Requiere Cesium local.</p>
-<div class="fields"><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Token Cesium ion (solo en esta sesión)"><button id="start">Cargar terreno 3D</button></div>
+<div class="cute-actions" aria-label="Controles de viaje"><button id="cute-play" type="button" disabled>Reproducir</button><button id="cute-repeat" type="button" disabled>Repetir</button><button id="cute-save" type="button">Guardar proyecto</button><button id="cute-open" type="button">Abrir proyecto</button><input id="cute-project-file" type="file" accept=".json,application/json" hidden><button id="cute-export" type="button" disabled title="La exportación de video 3D aún no está implementada">Descargar video</button></div>
+<section class="cute-section"><h2>Mis viajes guardados</h2><button id="cute-library-save" type="button">Guardar viaje con nombre</button><div id="cute-library" style="display:grid;gap:8px;margin-top:10px"></div><small class="cute-muted">Los proyectos se guardan en este navegador. Las fotografías y la música se seleccionan de nuevo al abrirlos.</small></section>
+<section class="cute-section"><h2>Línea de tiempo · arrastra para revisar el viaje</h2><input id="cute-seek" type="range" min="0" max="100" value="0" disabled><div style="display:flex;justify-content:space-between"><output id="cute-current">00:00</output><span id="cute-total">00:30</span></div><small class="cute-muted">La búsqueda manual en la animación 3D está pendiente.</small></section>
+<section class="cute-section"><h2>Exportar para</h2><div class="cute-actions"><button type="button" data-format="9:16">Instagram · 9:16</button><button type="button" data-format="9:16">TikTok · 9:16</button><button type="button" data-format="16:9">Facebook · 16:9</button><button type="button" data-format="1:1">WhatsApp · 1:1</button></div><small class="cute-muted">Formatos preparados en la interfaz; exportación 3D aún no disponible.</small></section>
+<details class="cute-section" open><summary style="font-weight:800;cursor:pointer">Personalizar viaje</summary><div class="cute-grid" style="margin-top:12px"><label>Duración total del video (segundos)<input id="cute-duration" type="number" min="5" max="600" value="30"></label><label>Iluminación<select id="cute-light"><option value="50">Día</option><option value="0">Amanecer</option><option value="25">Mañana</option><option value="75">Tarde</option><option value="100">Noche</option></select></label></div><div class="cute-section"><h2>Música de fondo (MP3)</h2><input id="cute-music" type="file" accept=".mp3,audio/mpeg"><div class="cute-grid" style="margin-top:8px"><label>Volumen <input id="cute-volume" type="range" min="0" max="100" value="80"></label><label>Fade in (segundos)<input id="cute-fade" type="number" min="0" max="30" value="2"></label></div><small class="cute-muted">Música seleccionable; integración con video 3D pendiente.</small></div><div class="fields"><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Token Cesium ion (solo en esta sesión)"><button id="start">Cargar terreno 3D</button></div>
 <div class="stages" role="group" aria-label="Iluminación"><button data-stage="0">Amanecer</button><button data-stage="1">Mañana</button><button data-stage="2" aria-pressed="true">Día</button><button data-stage="3">Tarde</button><button data-stage="4">Noche</button></div>
 <div class="control"><label for="phase">Transición</label><input id="phase" type="range" min="0" max="100" value="50" step="1"><output id="phase-label">Día</output></div>
 <section class="trip-editor"><h2>Personalizar viaje · Tramos</h2><div id="trip-list" class="trip-list" aria-live="polite"></div><div class="trip-actions"><button id="trip-add" type="button">+ Agregar tramo</button></div><small>Configura cada tramo directamente. La animación disponible por ahora es un viaje de un solo tramo en avión.</small></section>
 <div class="fields" style="margin-top:9px"><button id="flight" disabled>Animar Santiago → Río</button><button id="reset" disabled>Vista general</button></div>
 <div class="fields" style="margin-top:8px"><button id="raw" disabled>1 · Sin filtros</button><button id="flat" disabled>2 · Terreno plano</button><button id="osm" disabled>3 · Mapa OSM</button></div>
 <div id="status" role="status">Cesium se carga localmente. Introduce el token para solicitar terreno e imágenes; no se guarda ni se envía a GitHub.</div>
-<div id="diagnostics" style="margin-top:8px;font-size:11px;color:#f4dca8;white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">Diagnóstico: sin iniciar.</div></section>
+<div id="diagnostics" style="margin-top:8px;font-size:11px;color:#f4dca8;white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">Diagnóstico: sin iniciar.</div></details></section>
+<div class="cute-stage">SUPER-TRIP 3D · MAPA SATELITAL</div>
 <div class="credit">Prototipo técnico · Imágenes y terreno según proveedor Cesium ion</div>
 <script>window.CESIUM_BASE_URL="../vendor/Cesium/";</script>
 <script src="../vendor/Cesium/Cesium.js"></script>
@@ -83,7 +116,7 @@ function updateTripPreview(){
  const valid=tripLegs.every(leg=>leg.from!==leg.to);
  const playable=valid&&tripLegs.length>0;
  $("flight").textContent=playable?"Animar viaje · "+tripLegs.length+" tramo(s)":"Revisa los tramos";
- $("flight").disabled=!viewer||!playable;
+ $("flight").disabled=!viewer||!playable;\n $("cute-play").disabled=!viewer||!playable;\n $("cute-repeat").disabled=!viewer||!playable;
  if(!valid)$("status").textContent="Revisa los tramos: origen y destino deben ser diferentes.";
 }
 function renderTripEditor(){
@@ -111,7 +144,13 @@ function renderTripEditor(){
   fieldset.appendChild(pair);
   fieldset.appendChild(makeSelect("Transporte",leg.mode,["Avión","Automóvil","Bus","Tren","Barco"],v=>{leg.mode=v;updateTripPreview();}));
   if(i>0){const remove=document.createElement("button");remove.type="button";remove.className="leg-remove";remove.textContent="Quitar tramo";remove.addEventListener("click",()=>{tripLegs.splice(i,1);renderTripEditor();});fieldset.appendChild(remove);}
-  list.appendChild(fieldset);
+  const extras=document.createElement("div");extras.className="cute-grid";
+  const inputField=(title,type,attrs={})=>{const l=document.createElement("label");l.textContent=title;const x=document.createElement("input");x.type=type;for(const [k,v] of Object.entries(attrs))x.setAttribute(k,v);l.appendChild(x);return l;};
+  const moment=document.createElement("label");moment.textContent="Momento del día en este tramo";const momentSelect=document.createElement("select");["Automático","Amanecer","Mañana","Día","Tarde","Noche"].forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;momentSelect.appendChild(o);});momentSelect.value=leg.moment||"Automático";momentSelect.addEventListener("change",()=>leg.moment=momentSelect.value);moment.appendChild(momentSelect);fieldset.appendChild(moment);
+  const seconds=inputField("Duración de este tramo (segundos, opcional)","number",{min:"1",max:"600",placeholder:"Automática"});seconds.querySelector("input").value=leg.seconds||"";seconds.querySelector("input").addEventListener("change",e=>leg.seconds=Number(e.target.value)||null);fieldset.appendChild(seconds);
+  for(const [title,key] of [["Fotografía al salir (opcional)","departurePhoto"],["Fotografía al llegar (opcional)","arrivalPhoto"]]){const photo=inputField(title,"file",{accept:"image/png,image/jpeg,image/webp"});photo.querySelector("input").addEventListener("change",e=>{leg[key]=e.target.files?.[0]||null;});extras.appendChild(photo);}
+  const p1=inputField("Duración foto salida (segundos)","number",{min:"1",max:"30",value:"5"});const p2=inputField("Duración foto llegada (segundos)","number",{min:"1",max:"30",value:"5"});extras.append(p1,p2);fieldset.appendChild(extras);
+    list.appendChild(fieldset);
  });
  updateTripPreview();
 }
@@ -123,7 +162,23 @@ $("trip-add").addEventListener("click",()=>{
 });
 renderTripEditor();
 
-async function start(){const token=$("token").value.trim();if(!token){$("status").textContent="Se necesita un token válido para solicitar terreno 3D.";return;}
+
+// Controles de la interfaz Cute adaptados al prototipo 3D.
+const cuteDuration=$("cute-duration");
+const durationLabel=()=>{$("cute-total").textContent="00:"+String(Math.max(0,Number(cuteDuration.value)||30)).padStart(2,"0");};
+cuteDuration.addEventListener("change",durationLabel);durationLabel();
+$("cute-light").addEventListener("change",e=>{$("phase").value=e.target.value;applyPhase(e.target.value);});
+$("cute-play").addEventListener("click",()=>{$("flight").click();});
+$("cute-repeat").addEventListener("click",()=>{$("flight").click();});
+const cuteProject=()=>({version:1,name:"Super-Trip 3D",duration:Number(cuteDuration.value)||30,legs:tripLegs.map(({from,to,mode,moment,seconds})=>({from,to,mode,moment,seconds}))});
+function restoreCuteProject(data){if(!data||!Array.isArray(data.legs)||!data.legs.length)throw Error("Proyecto inválido");const valid=data.legs.every(l=>cityCatalog.some(c=>c.name===l.from)&&cityCatalog.some(c=>c.name===l.to)&&["Avión","Automóvil","Bus","Tren","Barco"].includes(l.mode));if(!valid)throw Error("Ciudades o transportes no reconocidos");tripLegs=data.legs.map(l=>({from:l.from,to:l.to,mode:l.mode,moment:l.moment||"Automático",seconds:l.seconds||null}));cuteDuration.value=data.duration||30;durationLabel();renderTripEditor();}
+$("cute-save").addEventListener("click",()=>{const blob=new Blob([JSON.stringify(cuteProject(),null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="super-trip-3d.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);});
+$("cute-open").addEventListener("click",()=>$("cute-project-file").click());
+$("cute-project-file").addEventListener("change",async e=>{try{const f=e.target.files?.[0];if(f)restoreCuteProject(JSON.parse(await f.text()));}catch(err){$("status").textContent="No se pudo abrir el proyecto: "+err.message;}e.target.value="";});
+function drawCuteLibrary(){const el=$("cute-library");el.replaceChildren();let items=[];try{items=JSON.parse(localStorage.getItem("supertrip3d-library")||"[]");}catch{}items.forEach((item,i)=>{const div=document.createElement("div");div.className="cute-section";div.style.margin="0";const title=document.createElement("strong");title.textContent=item.name;const btn=document.createElement("button");btn.textContent="Abrir";btn.style.marginLeft="8px";btn.onclick=()=>{try{restoreCuteProject(item.project)}catch(err){$("status").textContent=err.message}};const del=document.createElement("button");del.textContent="Eliminar";del.style.marginLeft="5px";del.onclick=()=>{items.splice(i,1);localStorage.setItem("supertrip3d-library",JSON.stringify(items));drawCuteLibrary()};div.append(title,btn,del);el.appendChild(div);});}
+$("cute-library-save").addEventListener("click",()=>{const name=prompt("Nombre del viaje");if(!name?.trim())return;let items=[];try{items=JSON.parse(localStorage.getItem("supertrip3d-library")||"[]")}catch{}items.push({name:name.trim().slice(0,80),project:cuteProject()});try{localStorage.setItem("supertrip3d-library",JSON.stringify(items));drawCuteLibrary()}catch{$("status").textContent="No hay espacio disponible para guardar el viaje."}});
+drawCuteLibrary();
+\nasync function start(){const token=$("token").value.trim();if(!token){$("status").textContent="Se necesita un token válido para solicitar terreno 3D.";return;}
  $("start").disabled=true;$("status").textContent="Cargando terreno y texturas...";
  try{
  // Comprobar únicamente el estado HTTP. Nunca mostrar ni registrar el token.
@@ -298,7 +353,7 @@ $("flight").addEventListener("click",()=>{
   // Estos trayectos son ilustrativos: no representan carreteras, vías o rutas marítimas reales.
   $("status").textContent="Tramo "+(index+1)+"/"+legs.length+": "+leg.from+" → "+leg.to+" · "+leg.mode+" (trazado ilustrativo).";
  }
- const start=performance.now(),perLeg=16000;
+ const start=performance.now(),perLeg=Math.max(1000,(Number(cuteDuration.value)||30)*1000/legs.length);
  function frame(now){
   const total=Math.min(legs.length-0.000001,Math.max(0,(now-start)/perLeg));
   const index=Math.floor(total),raw=total-index;
