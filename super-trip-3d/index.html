@@ -63,13 +63,26 @@ const cityCatalog=[
  {name:"Buenos Aires",lon:-58.3816,lat:-34.6037},{name:"Río de Janeiro",lon:-43.2096,lat:-22.9068},
  {name:"São Paulo",lon:-46.6333,lat:-23.5505},{name:"Curitiba",lon:-49.2733,lat:-25.4284},
  {name:"Maceió",lon:-35.7353,lat:-9.6498},{name:"Florianópolis",lon:-48.5480,lat:-27.5949},
- {name:"Salvador",lon:-38.5014,lat:-12.9777},{name:"Recife",lon:-34.8813,lat:-8.0476}
+ {name:"Salvador",lon:-38.5014,lat:-12.9777},{name:"Recife",lon:-34.8813,lat:-8.0476},
+ {name:"Búzios",lon:-41.8814,lat:-22.7469},{name:"Cabo Frio",lon:-42.0186,lat:-22.8794},
+ {name:"Arraial do Cabo",lon:-42.0277,lat:-22.9663},{name:"Niterói",lon:-43.1034,lat:-22.8832},
+ {name:"Brasília",lon:-47.8825,lat:-15.7942},{name:"Belo Horizonte",lon:-43.9378,lat:-19.9167},
+ {name:"Porto Alegre",lon:-51.2302,lat:-30.0346},{name:"Foz do Iguaçu",lon:-54.5854,lat:-25.5163},
+ {name:"Fortaleza",lon:-38.5434,lat:-3.7319},{name:"Natal",lon:-35.2110,lat:-5.7945},
+ {name:"João Pessoa",lon:-34.8450,lat:-7.1195},{name:"Manaus",lon:-60.0217,lat:-3.1190},
+ {name:"Arica",lon:-70.3126,lat:-18.4783},{name:"Iquique",lon:-70.1357,lat:-20.2307},
+ {name:"Antofagasta",lon:-70.4000,lat:-23.6509},{name:"Calama",lon:-68.9270,lat:-22.4544},
+ {name:"La Serena",lon:-71.2520,lat:-29.9027},{name:"Viña del Mar",lon:-71.5518,lat:-33.0245},
+ {name:"Rancagua",lon:-70.7406,lat:-34.1708},{name:"Talca",lon:-71.6667,lat:-35.4264},
+ {name:"Chillán",lon:-72.1034,lat:-36.6066},{name:"Temuco",lon:-72.5984,lat:-38.7359},
+ {name:"Valdivia",lon:-73.2459,lat:-39.8142},{name:"Osorno",lon:-73.1335,lat:-40.5739},
+ {name:"Coyhaique",lon:-72.0662,lat:-45.5712},{name:"Punta Arenas",lon:-70.9081,lat:-53.1638}
 ];
 let tripLegs=[{from:"Santiago",to:"Río de Janeiro",mode:"Avión"}];
 function updateTripPreview(){
  const valid=tripLegs.every(leg=>leg.from!==leg.to);
- const playable=valid&&tripLegs.length===1&&tripLegs[0].mode==="Avión";
- $("flight").textContent=playable?"Animar "+tripLegs[0].from+" → "+tripLegs[0].to:"Animar viaje (próximamente)";
+ const playable=valid&&tripLegs.length>0;
+ $("flight").textContent=playable?"Animar viaje · "+tripLegs.length+" tramo(s)":"Revisa los tramos";
  $("flight").disabled=!viewer||!playable;
  if(!valid)$("status").textContent="Revisa los tramos: origen y destino deben ser diferentes.";
 }
@@ -202,48 +215,57 @@ const planeSvg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" wi
 <defs><linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff"/><stop offset=".48" stop-color="#dce7f1"/><stop offset="1" stop-color="#899fb5"/></linearGradient><filter id="shadow"><feDropShadow dx="2" dy="4" stdDeviation="3" flood-opacity=".35"/></filter></defs>
 <g filter="url(#shadow)"><path d="M64 5 C59 5 57 13 56 23 L54 51 L13 74 Q9 77 11 83 L17 86 L55 76 L57 103 L44 113 L45 119 L64 114 L83 119 L84 113 L71 103 L73 76 L111 86 L117 83 Q119 77 115 74 L74 51 L72 23 C71 13 69 5 64 5Z" fill="url(#metal)" stroke="#506b86" stroke-width="1.5"/><path d="M61 14 Q64 8 67 14 L68 43 L60 43Z" fill="#244d72"/><path d="M64 45 L64 110" stroke="#ffffff" stroke-width="2" opacity=".7"/><path d="M16 79 L55 69 M112 79 L73 69" stroke="#f8fafc" stroke-width="2" opacity=".8"/></g></svg>`;
 const planeImage="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(planeSvg);
-function tripPoint(t){return Cesium.Cartesian3.fromDegrees(interpolate(cities[0].lon,cities[1].lon,t),interpolate(cities[0].lat,cities[1].lat,t),12000+Math.sin(Math.PI*t)*210000)}
+const modeIcons={
+ "Avión":planeImage,
+ "Automóvil":"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90"><rect x="10" y="29" width="70" height="36" rx="9" fill="#f5f8ff" stroke="#263f5e" stroke-width="3"/><path d="M25 29 L33 17 H57 L65 29" fill="#b9d4ec" stroke="#263f5e" stroke-width="3"/><circle cx="25" cy="65" r="9" fill="#243950"/><circle cx="65" cy="65" r="9" fill="#243950"/></svg>'),
+ "Bus":"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90"><rect x="14" y="12" width="62" height="63" rx="10" fill="#f7fafc" stroke="#29415e" stroke-width="4"/><path d="M23 24 H67 V47 H23Z" fill="#a9d5ed"/><circle cx="27" cy="73" r="7" fill="#263f5e"/><circle cx="63" cy="73" r="7" fill="#263f5e"/></svg>'),
+ "Tren":"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90"><rect x="20" y="8" width="50" height="67" rx="12" fill="#f7fafc" stroke="#29415e" stroke-width="4"/><rect x="28" y="21" width="34" height="26" rx="3" fill="#9ac8e9"/><path d="M26 80 L64 80 M30 69 L20 86 M60 69 L70 86" stroke="#29415e" stroke-width="5"/></svg>'),
+ "Barco":"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90"><path d="M10 51 L80 51 L66 75 H26Z" fill="#f7fafc" stroke="#29415e" stroke-width="4"/><path d="M44 15 V51 M44 19 L68 43 H44Z" fill="#b2d5f1" stroke="#29415e" stroke-width="3"/><path d="M10 79 Q25 70 40 79 T70 79" fill="none" stroke="#fff" stroke-width="4"/></svg>')
+};
+function tripPoint(a,b,t,mode){
+ const height=mode==="Avión"?12000+Math.sin(Math.PI*t)*210000:mode==="Barco"?10000:12000;
+ return Cesium.Cartesian3.fromDegrees(interpolate(a.lon,b.lon,t),interpolate(a.lat,b.lat,t),height);
+}
 $("flight").addEventListener("click",()=>{
- if(!viewer||tripLegs.length!==1||tripLegs[0].mode!=="Avión")return;
- const leg=tripLegs[0],a=cityCatalog.find(c=>c.name===leg.from),b=cityCatalog.find(c=>c.name===leg.to);
- if(!a||!b)return;
- cities[0]={...a};cities[1]={...b};
- cityPositions.splice(0,cityPositions.length,...positions());
- cityMarkers.forEach((marker,i)=>{marker.position=cityPositions[i];});
- document.querySelectorAll(".trip-city-tag").forEach((tag,i)=>{tag.textContent=cities[i].name;});
+ if(!viewer||tripLegs.length===0||tripLegs.some(leg=>leg.from===leg.to))return;
+ const legs=tripLegs.map(leg=>({...leg,a:cityCatalog.find(c=>c.name===leg.from),b:cityCatalog.find(c=>c.name===leg.to)}));
+ if(legs.some(leg=>!leg.a||!leg.b))return;
  cancelAnimationFrame(animationId);
  if(plane)viewer.entities.remove(plane);
  if(trail)viewer.entities.remove(trail);
  if(route)route.show=false;
- const startTime=performance.now(),duration=18000;
- let progress=0;
- const heading=Cesium.Math.toDegrees(Math.atan2(cities[1].lon-cities[0].lon,cities[1].lat-cities[0].lat));
- plane=viewer.entities.add({
-  position:new Cesium.CallbackProperty(()=>tripPoint(progress),false),
-  billboard:{image:planeImage,width:66,height:66,rotation:Cesium.Math.toRadians(-heading),alignedAxis:Cesium.Cartesian3.ZERO,verticalOrigin:Cesium.VerticalOrigin.CENTER,disableDepthTestDistance:Number.POSITIVE_INFINITY}
- });
- trail=viewer.entities.add({polyline:{
-  positions:new Cesium.CallbackProperty(()=>{
+ let activeIndex=-1,progress=0,previousLon=legs[0].a.lon,previousLat=legs[0].a.lat;
+ function beginLeg(index){
+  if(plane)viewer.entities.remove(plane);
+  if(trail)viewer.entities.remove(trail);
+  activeIndex=index;progress=0;
+  const leg=legs[index];
+  const heading=Math.atan2(leg.b.lon-leg.a.lon,leg.b.lat-leg.a.lat);
+  plane=viewer.entities.add({position:new Cesium.CallbackProperty(()=>tripPoint(leg.a,leg.b,progress,leg.mode),false),
+   billboard:{image:modeIcons[leg.mode],width:leg.mode==="Avión"?66:52,height:leg.mode==="Avión"?66:52,rotation:leg.mode==="Avión"?-heading:0,verticalOrigin:Cesium.VerticalOrigin.CENTER,disableDepthTestDistance:Number.POSITIVE_INFINITY}});
+  trail=viewer.entities.add({polyline:{positions:new Cesium.CallbackProperty(()=>{
    const points=[];const count=Math.max(1,Math.ceil(progress*120));
-   for(let i=0;i<=count;i++)points.push(tripPoint(Math.min(progress,i/120)));
+   for(let i=0;i<=count;i++)points.push(tripPoint(leg.a,leg.b,Math.min(progress,i/120),leg.mode));
    return points;
-  },false),width:2.5,material:Cesium.Color.fromCssColorString("#f5f9ff"),clampToGround:false
- }});
- // Cámara cenital amplia, con el avión ligeramente adelantado respecto al centro.
- let previousLon=cities[0].lon,previousLat=cities[0].lat;
+  },false),width:2.5,material:Cesium.Color.WHITE}});
+  // Estos trayectos son ilustrativos: no representan carreteras, vías o rutas marítimas reales.
+  $("status").textContent="Tramo "+(index+1)+"/"+legs.length+": "+leg.from+" → "+leg.to+" · "+leg.mode+" (trazado ilustrativo).";
+ }
+ const start=performance.now(),perLeg=16000;
  function frame(now){
-  const elapsed=Math.min(1,(now-startTime)/duration);
-  progress=elapsed*elapsed*(3-2*elapsed);
-  const lon=interpolate(cities[0].lon,cities[1].lon,progress),lat=interpolate(cities[0].lat,cities[1].lat,progress);
-  previousLon=interpolate(previousLon,lon,.14);
-  previousLat=interpolate(previousLat,lat,.14);
-  viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(previousLon,previousLat,1450000),
+  const total=Math.min(legs.length-0.000001,Math.max(0,(now-start)/perLeg));
+  const index=Math.floor(total),raw=total-index;
+  if(index!==activeIndex)beginLeg(index);
+  progress=raw*raw*(3-2*raw);
+  const leg=legs[index];
+  const lon=interpolate(leg.a.lon,leg.b.lon,progress),lat=interpolate(leg.a.lat,leg.b.lat,progress);
+  previousLon=interpolate(previousLon,lon,.14);previousLat=interpolate(previousLat,lat,.14);
+  viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(previousLon,previousLat,leg.mode==="Avión"?1450000:550000),
    orientation:{heading:0,pitch:Cesium.Math.toRadians(-90),roll:0}});
   viewer.scene.requestRender();
-  if(elapsed<1)animationId=requestAnimationFrame(frame);
-  else $("status").textContent="Vuelo completado: "+leg.from+" → "+leg.to+".";
+  if((now-start)<perLeg*legs.length)animationId=requestAnimationFrame(frame);
+  else $("status").textContent="Viaje completado: "+legs.length+" tramo(s).";
  }
- $("status").textContent="Vuelo "+leg.from+" → "+leg.to+" · vista aérea.";
  animationId=requestAnimationFrame(frame);
 });
 $("raw").addEventListener("click",()=>{
