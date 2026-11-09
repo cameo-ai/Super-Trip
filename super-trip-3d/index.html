@@ -95,7 +95,14 @@ function renderTripEditor(){
   function makeSelect(labelText,value,choices,onChange){
    const label=document.createElement("label");label.textContent=labelText;
    const select=document.createElement("select");select.setAttribute("aria-label",labelText+" del tramo "+(i+1));
-   choices.forEach(choice=>{const option=document.createElement("option");option.value=choice;option.textContent=choice;select.appendChild(option);});
+   const chile=new Set(["Santiago","Valparaíso","Concepción","Puerto Montt","Arica","Iquique","Antofagasta","Calama","La Serena","Viña del Mar","Rancagua","Talca","Chillán","Temuco","Valdivia","Osorno","Coyhaique","Punta Arenas"]);
+   const argentina=new Set(["Buenos Aires"]);
+   if(labelText==="Transporte"){choices.forEach(choice=>{const option=document.createElement("option");option.value=choice;option.textContent=choice;select.appendChild(option);});}
+   else{for(const [country,filter] of [["Chile",c=>chile.has(c)],["Brasil",c=>!chile.has(c)&&!argentina.has(c)],["Argentina",c=>argentina.has(c)]]){
+    const group=document.createElement("optgroup");group.label=country;
+    choices.filter(filter).sort((a,b)=>a.localeCompare(b,"es")).forEach(choice=>{const option=document.createElement("option");option.value=choice;option.textContent=choice;group.appendChild(option);});
+    select.appendChild(group);
+   }}
    select.value=value;select.addEventListener("change",()=>onChange(select.value));
    label.appendChild(select);return label;
   }
