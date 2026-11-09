@@ -119,7 +119,7 @@ async function start(){const token=$("token").value.trim();if(!token){$("status"
  viewer.scene.globe.baseColor=Cesium.Color.fromCssColorString("#447b9a");
  viewer.scene.backgroundColor=Cesium.Color.fromCssColorString("#071327");
  viewer.scene.globe.showGroundAtmosphere=true;
- const p=positions();cities.forEach((c,i)=>viewer.entities.add({position:p[i],point:{pixelSize:12,color:Cesium.Color.fromCssColorString("#ff694d"),outlineColor:Cesium.Color.WHITE,outlineWidth:2},label:{text:c.name,font:"bold 16px sans-serif",fillColor:Cesium.Color.WHITE,showBackground:true,backgroundColor:Cesium.Color.fromCssColorString("#09172c"),pixelOffset:new Cesium.Cartesian2(0,22)}}));
+ const p=positions();cities.forEach((c,i)=>viewer.entities.add({position:p[i],point:{pixelSize:12,color:Cesium.Color.fromCssColorString("#ff694d"),outlineColor:Cesium.Color.WHITE,outlineWidth:2},label:{text:c.name,font:"bold 15px sans-serif",fillColor:Cesium.Color.WHITE,showBackground:false,outlineColor:Cesium.Color.fromCssColorString("#09172c"),outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new Cesium.Cartesian2(0,22)}}));
  const coords=[];for(let i=0;i<=100;i++){let t=i/100;coords.push(Cesium.Cartesian3.fromDegrees(interpolate(cities[0].lon,cities[1].lon,t),interpolate(cities[0].lat,cities[1].lat,t),12000+Math.sin(Math.PI*t)*210000))}
  route=viewer.entities.add({polyline:{positions:coords,width:3,material:new Cesium.PolylineDashMaterialProperty({color:Cesium.Color.WHITE,dashLength:14})}});
  viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(-58,-28,4200000),duration:2.5});
