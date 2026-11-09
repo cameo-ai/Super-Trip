@@ -22,7 +22,7 @@
 "use strict";
 const $=id=>document.getElementById(id),labels=["Amanecer","Mañana","Día","Tarde","Noche"];
 const stops=[{color:[221,128,163],night:.16},{color:[170,210,234],night:.03},{color:[230,246,255],night:0},{color:[224,144,99],night:.17},{color:[19,41,82],night:.70}];
-let viewer=null,route=null,plane=null,trail=null,cityMarkers=[],cityPositions=[],animationId=0,worldTerrain=null,originalImagery=null;
+let viewer=null,route=null,plane=null,trail=null,busParts=[],cityMarkers=[],cityPositions=[],animationId=0,worldTerrain=null,originalImagery=null;
 let rawMode=false,flatMode=false,osmMode=false;
 const diagnostic={source:"sin iniciar",imageryErrors:0,terrainErrors:0,tilesPending:"?",tilesRendered:"?",lastError:"ninguno"};
 function safeDiagnostic(message){return String(message||"desconocido")
@@ -229,6 +229,37 @@ const modeIcons={
  "Tren":"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90"><rect x="20" y="8" width="50" height="67" rx="12" fill="#f7fafc" stroke="#29415e" stroke-width="4"/><rect x="28" y="21" width="34" height="26" rx="3" fill="#9ac8e9"/><path d="M26 80 L64 80 M30 69 L20 86 M60 69 L70 86" stroke="#29415e" stroke-width="5"/></svg>'),
  "Barco":"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90"><path d="M10 51 L80 51 L66 75 H26Z" fill="#f7fafc" stroke="#29415e" stroke-width="4"/><path d="M44 15 V51 M44 19 L68 43 H44Z" fill="#b2d5f1" stroke="#29415e" stroke-width="3"/><path d="M10 79 Q25 70 40 79 T70 79" fill="none" stroke="#fff" stroke-width="4"/></svg>')
 };
+// Autobús compuesto de geometrías 3D reales (cajas y cilindros Cesium).
+// Coordenadas locales: X = avance, Y = lateral, Z = altura.
+function clearBus(){for(const entity of busParts)viewer.entities.remove(entity);busParts=[];}
+function createBus3D(a,b,getProgress){
+ const heading=Math.atan2(b.lon-a.lon,b.lat-a.lat);
+ const color=hex=>Cesium.Color.fromCssColorString(hex);
+ const bodyHeight=12000;
+ function part(offset,dimensions,paint,kind="box"){
+  const position=new Cesium.CallbackProperty(()=>{
+   const p=tripPoint(a,b,getProgress(),"Bus");
+   const enu=Cesium.Transforms.eastNorthUpToFixedFrame(p);
+   const local=new Cesium.Cartesian3(offset[0],offset[1],offset[2]);
+   const rotated=Cesium.Matrix3.multiplyByVector(Cesium.Matrix3.fromRotationZ(-heading),local,new Cesium.Cartesian3());
+   return Cesium.Matrix4.multiplyByPoint(enu,rotated,new Cesium.Cartesian3());
+  },false);
+  const orientation=new Cesium.CallbackProperty(()=>Cesium.Transforms.headingPitchRollQuaternion(tripPoint(a,b,getProgress(),"Bus"),new Cesium.HeadingPitchRoll(heading-Cesium.Math.PI_OVER_TWO,0,0)),false);
+  const appearance=kind==="box"?{box:{dimensions:new Cesium.Cartesian3(...dimensions),material:color(paint)}}:{cylinder:{length:dimensions[0],topRadius:dimensions[1],bottomRadius:dimensions[1],material:color(paint)}};
+  const entity=viewer.entities.add({position,orientation,...appearance});busParts.push(entity);
+ }
+ // Escala deliberadamente ampliada para que el autobús sea visible desde la cámara aérea.
+ const L=22000,W=8500,H=8500;
+ part([0,0,6000],[L,W,H],"#f0f3f7");
+ part([0,0,10900],[L*.92,W*.92,1100],"#c7d5e2");
+ part([0,-W/2-60,7300],[L*.82,350,3300],"#345b7b");
+ part([0,W/2+60,7300],[L*.82,350,3300],"#345b7b");
+ part([L/2+60,0,7300],[350,W*.84,3400],"#254a70");
+ part([-L/2-60,0,7300],[350,W*.84,3000],"#254a70");
+ part([0,0,2200],[L*.84,W*.94,1200],"#294e86");
+ // Las ruedas son volúmenes cilíndricos, no imágenes planas.
+ for(const x of [-L*.31,L*.31])for(const y of [-W*.54,W*.54])part([x,y,2600],[1800,1900],"#222c39","cylinder");
+}
 function tripPoint(a,b,t,mode){
  const height=mode==="Avión"?12000+Math.sin(Math.PI*t)*210000:mode==="Barco"?10000:12000;
  return Cesium.Cartesian3.fromDegrees(interpolate(a.lon,b.lon,t),interpolate(a.lat,b.lat,t),height);
@@ -240,15 +271,18 @@ $("flight").addEventListener("click",()=>{
  cancelAnimationFrame(animationId);
  if(plane)viewer.entities.remove(plane);
  if(trail)viewer.entities.remove(trail);
+ clearBus();
  if(route)route.show=false;
  let activeIndex=-1,progress=0,previousLon=legs[0].a.lon,previousLat=legs[0].a.lat;
  function beginLeg(index){
   if(plane)viewer.entities.remove(plane);
   if(trail)viewer.entities.remove(trail);
+  clearBus();
   activeIndex=index;progress=0;
   const leg=legs[index];
   const heading=Math.atan2(leg.b.lon-leg.a.lon,leg.b.lat-leg.a.lat);
-  plane=viewer.entities.add({position:new Cesium.CallbackProperty(()=>tripPoint(leg.a,leg.b,progress,leg.mode),false),
+  if(leg.mode==="Bus"){createBus3D(leg.a,leg.b,()=>progress);plane=null;}
+  else plane=viewer.entities.add({position:new Cesium.CallbackProperty(()=>tripPoint(leg.a,leg.b,progress,leg.mode),false),
    billboard:{image:modeIcons[leg.mode],width:leg.mode==="Avión"?66:52,height:leg.mode==="Avión"?66:52,rotation:leg.mode==="Avión"?-heading:0,verticalOrigin:Cesium.VerticalOrigin.CENTER,disableDepthTestDistance:Number.POSITIVE_INFINITY}});
   trail=viewer.entities.add({polyline:{positions:new Cesium.CallbackProperty(()=>{
    const points=[];const count=Math.max(1,Math.ceil(progress*120));
