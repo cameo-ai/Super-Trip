@@ -67,7 +67,7 @@ body{background:#e9efff;color:#172449;font-family:system-ui,sans-serif}
 "use strict";
 const $=id=>document.getElementById(id),labels=["Amanecer","Mañana","Día","Tarde","Noche"];
 const stops=[{color:[221,128,163],night:.16},{color:[170,210,234],night:.03},{color:[230,246,255],night:0},{color:[224,144,99],night:.17},{color:[19,41,82],night:.70}];
-let viewer=null,route=null,plane=null,trail=null,busParts=[],cityMarkers=[],cityPositions=[],animationId=0,worldTerrain=null,originalImagery=null;
+let viewer=null,route=null,plane=null,trail=null,shipWake=[],busParts=[],cityMarkers=[],cityPositions=[],animationId=0,worldTerrain=null,originalImagery=null;
 let rawMode=false,flatMode=false,osmMode=false;
 const diagnostic={source:"sin iniciar",imageryErrors:0,terrainErrors:0,tilesPending:"?",tilesRendered:"?",lastError:"ninguno"};
 function safeDiagnostic(message){return String(message||"desconocido")
@@ -408,7 +408,7 @@ async function start(){const token=$("token").value.trim();if(!token){$("status"
  diagnostic.lastError=safeDiagnostic(message.replaceAll(token,"[token oculto]"));showDiagnostic();
  $("start").disabled=false;}}
 $("start").addEventListener("click",start);
-$("reset").addEventListener("click",()=>{if(tripRecording)stopVideoRecording();cancelAnimationFrame(animationId);displayTripPhoto(null,"");if(route)route.show=true;if(plane){viewer.entities.remove(plane);plane=null;}if(trail){viewer.entities.remove(trail);trail=null;}viewer?.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(-58,-28,4200000),duration:2})});
+$("reset").addEventListener("click",()=>{if(tripRecording)stopVideoRecording();cancelAnimationFrame(animationId);displayTripPhoto(null,"");if(route)route.show=true;if(plane){viewer.entities.remove(plane);plane=null;}if(trail){viewer.entities.remove(trail);trail=null;}clearShipWake();viewer?.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(-58,-28,4200000),duration:2})});
 // Vista aérea limpia: avión estilizado con volumen, una ruta y cámara amplia.
 const planeSvg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
 <defs><linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff"/><stop offset=".48" stop-color="#dce7f1"/><stop offset="1" stop-color="#899fb5"/></linearGradient><filter id="shadow"><feDropShadow dx="2" dy="4" stdDeviation="3" flood-opacity=".35"/></filter></defs>
@@ -803,6 +803,7 @@ $("flight").addEventListener("click",async()=>{
  displayTripPhoto(null,"");
  if(plane)viewer.entities.remove(plane);
  if(trail)viewer.entities.remove(trail);
+ clearShipWake();
  clearBus();
  if(route)route.show=false;
  let activeIndex=-1,progress=0,previousLon=legs[0].a.lon,previousLat=legs[0].a.lat;
@@ -825,15 +826,68 @@ $("flight").addEventListener("click",async()=>{
   return previous;
  },false);
 }
+// Estela visual ilustrativa: dos brazos de espuma siguiendo la ruta marítima.
+// No modifica la geometría, la velocidad ni los trazados de Auto Sea Way.
+function clearShipWake(){
+ if(!viewer){shipWake=[];return;}
+ for(const entity of shipWake)viewer.entities.remove(entity);
+ shipWake=[];
+}
+function createShipWake(leg,getProgress){
+ const total=Math.max(1,leg.path?.distance||Cesium.Cartesian3.distance(
+  Cesium.Cartesian3.fromDegrees(leg.a.lon,leg.a.lat),
+  Cesium.Cartesian3.fromDegrees(leg.b.lon,leg.b.lat)));
+ const wakeFraction=Math.min(.075,180000/total);
+ const bands=8;
+ function foamPoint(t,side,age){
+  const center=activeTripLocation(leg,t);
+  const dt=Math.min(.002,Math.max(.00001,2500/total));
+  const before=activeTripLocation(leg,Math.max(0,t-dt));
+  const after=activeTripLocation(leg,Math.min(1,t+dt));
+  const latRad=center.lat*Math.PI/180;
+  const east=(after.lon-before.lon)*111320*Math.max(.01,Math.cos(latRad));
+  const north=(after.lat-before.lat)*111320;
+  const magnitude=Math.hypot(east,north)||1;
+  const offset=side*(300+age*4300);
+  const eastOffset=-north/magnitude*offset;
+  const northOffset=east/magnitude*offset;
+  return Cesium.Cartesian3.fromDegrees(
+   center.lon+eastOffset/(111320*Math.max(.01,Math.cos(latRad))),
+   center.lat+northOffset/111320,15);
+ }
+ for(const side of [-1,1]){
+  for(let band=0;band<bands;band++){
+   const startAge=band/bands,endAge=(band+1)/bands;
+   const opacity=.62*(1-endAge)**1.25;
+   const entity=viewer.entities.add({
+    show:new Cesium.CallbackProperty(()=>getProgress()>wakeFraction*startAge,false),
+    polyline:{
+     positions:new Cesium.CallbackProperty(()=>{
+      const now=getProgress();
+      const front=Math.max(0,now-wakeFraction*startAge);
+      const back=Math.max(0,now-wakeFraction*endAge);
+      return [foamPoint(front,side,startAge),foamPoint(back,side,endAge)];
+     },false),
+     width:band<3?3:2,
+     material:Cesium.Color.WHITE.withAlpha(opacity),
+     clampToGround:false
+    }
+   });
+   shipWake.push(entity);
+  }
+ }
+}
 function beginLeg(index){
   if(plane)viewer.entities.remove(plane);
   if(trail)viewer.entities.remove(trail);
+  clearShipWake();
   clearBus();
   activeIndex=index;progress=0;
   const leg=legs[index];
   const heading=Math.atan2(leg.b.lon-leg.a.lon,leg.b.lat-leg.a.lat);
   plane=viewer.entities.add({position:new Cesium.CallbackProperty(()=>activeTripPoint(leg,progress),false),
    billboard:{image:modeIcons[leg.mode],width:leg.mode==="Avión"?72:58,height:leg.mode==="Avión"?72:58,rotation:screenAlignedVehicleRotation(leg.a,leg.b,()=>progress,leg.mode),verticalOrigin:Cesium.VerticalOrigin.CENTER,heightReference:leg.mode==="Avión"?Cesium.HeightReference.NONE:Cesium.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Number.POSITIVE_INFINITY}});
+  if(leg.mode==="Barco")createShipWake(leg,()=>progress);
   trail=viewer.entities.add({polyline:{positions:new Cesium.CallbackProperty(()=>{
    const points=[];const count=Math.max(1,Math.ceil(progress*120));
    for(let i=0;i<=count;i++)points.push(activeTripPoint(leg,Math.min(progress,i/120)));
