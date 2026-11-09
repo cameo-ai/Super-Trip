@@ -46,7 +46,7 @@ body{background:#e9f2ea;color:#173c3a;font-family:system-ui,sans-serif}
 <details class="cute-section" open><summary style="font-weight:800;cursor:pointer">Personalizar viaje</summary><div class="cute-grid" style="margin-top:12px"><label>Duración total del video (segundos)<input id="cute-duration" type="number" min="5" max="600" value="30"></label><label>Iluminación<select id="cute-light"><option value="50">Día</option><option value="0">Amanecer</option><option value="25">Mañana</option><option value="75">Tarde</option><option value="100">Noche</option></select></label></div><div class="cute-section"><h2>Música de fondo (MP3)</h2><input id="cute-music" type="file" accept=".mp3,audio/mpeg"><div class="cute-grid" style="margin-top:8px"><label>Volumen <input id="cute-volume" type="range" min="0" max="100" value="80"></label><label>Fade in (segundos)<input id="cute-fade" type="number" min="0" max="30" value="2"></label></div><small class="cute-muted">El MP3 se reproduce durante la animación. No se guarda dentro del proyecto JSON ni se incorpora todavía a un archivo de video.</small></div>
 <div class="stages" role="group" aria-label="Iluminación"><button data-stage="0">Amanecer</button><button data-stage="1">Mañana</button><button data-stage="2" aria-pressed="true">Día</button><button data-stage="3">Tarde</button><button data-stage="4">Noche</button></div>
 <div class="control"><label for="phase">Transición</label><input id="phase" type="range" min="0" max="100" value="50" step="1"><output id="phase-label">Día</output></div>
-<section class="trip-editor"><h2>Personalizar viaje · Tramos</h2><div id="trip-list" class="trip-list" aria-live="polite"></div><div class="trip-actions"><button id="trip-add" type="button">+ Agregar tramo</button></div><small>Configura cada tramo directamente. La animación disponible por ahora es un viaje de un solo tramo en avión.</small></section>
+<section class="trip-editor"><h2>Personalizar viaje · Tramos</h2><div id="trip-list" class="trip-list" aria-live="polite"></div><div class="trip-actions"><button id="trip-add" type="button">+ Agregar tramo</button><button id="trip-create" type="button">Crear viaje</button></div><small>Configura cada tramo directamente. La animación disponible por ahora es un viaje de un solo tramo en avión.</small></section>
 <div class="fields" style="margin-top:9px"><button id="flight" disabled>Animar Santiago → Río</button><button id="reset" disabled>Vista general</button></div>
 <div class="fields" style="margin-top:8px"><button id="raw" disabled>1 · Sin filtros</button><button id="flat" disabled>2 · Terreno plano</button><button id="osm" disabled>3 · Mapa OSM</button></div>
 <div id="status" role="status">Cesium se carga localmente. Introduce el token para solicitar terreno e imágenes; no se guarda ni se envía a GitHub.</div>
@@ -169,7 +169,17 @@ $("trip-add").addEventListener("click",()=>{
  $("status").textContent="Tramo "+tripLegs.length+" agregado. Configura su destino y transporte.";
 });
 renderTripEditor();
-
+$("trip-create").addEventListener("click",()=>{
+ if(!confirm("¿Crear un viaje nuevo? Los cambios actuales no guardados se perderán."))return;
+ stopTripMusic();
+ tripLegs=[{from:"Santiago",to:"Río de Janeiro",mode:"Avión"}];
+ $("cute-duration").value="30";
+ $("cute-total").textContent="00:30";
+ $("cute-seek").value="0";
+ $("cute-current").textContent="00:00";
+ renderTripEditor();
+ $("status").textContent="Viaje nuevo creado. Configura el primer tramo.";
+});
 
 // Música local: no se sube a servicios ni se incorpora a los proyectos JSON.
 let musicUrl=null;const tripAudio=new Audio();tripAudio.preload="auto";
