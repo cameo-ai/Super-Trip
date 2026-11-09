@@ -4,16 +4,13 @@
 <link href="../vendor/Cesium/Widgets/widgets.css" rel="stylesheet">
 <style>
 *{box-sizing:border-box}body{margin:0;background:#071327;color:#f5f8ff;font:14px system-ui,Arial}#map{position:absolute;inset:0}.toolbar{position:absolute;top:14px;left:14px;right:14px;max-width:510px;background:#0b1730ed;padding:17px;border:1px solid #3b547b;border-radius:16px;box-shadow:0 12px 35px #0007}.toolbar h1{font-size:18px;margin:0 0 5px}.toolbar p{font-size:12px;color:#b4c5dd;margin:0 0 12px}.fields{display:flex;gap:7px;flex-wrap:wrap}input,button,select{font:inherit;border-radius:9px;border:1px solid #506b90;padding:10px;background:#152846;color:white}input{flex:1;min-width:170px}button{cursor:pointer;background:#225bba;border-color:#3479e0}button:disabled{opacity:.5;cursor:default}.stages{display:flex;gap:5px;margin-top:12px}.stages button{flex:1;font-size:12px;padding:9px 3px;background:#1a2c48}.stages button[aria-pressed=true]{background:#1760ba;outline:2px solid #77b7ff}.control{display:flex;align-items:center;gap:8px;margin-top:12px}.control input{min-width:0;width:100%;padding:0;accent-color:#ffbd66}#status{margin-top:9px;font-size:12px;color:#c9d7e8}.tint{position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light;opacity:0;transition:background 450ms,opacity 450ms}.night{position:absolute;inset:0;pointer-events:none;background:#071630;opacity:0;transition:opacity 450ms}.credit{position:absolute;right:10px;bottom:8px;font-size:10px;color:white;background:#071327aa;padding:4px 7px;border-radius:5px}#map .cesium-viewer-bottom{bottom:25px}@media(max-width:550px){.toolbar{top:8px;left:8px;right:8px;padding:12px}.toolbar h1{font-size:15px}.stages button{font-size:10px}}
- .trip-editor{margin-top:12px;padding:10px;border:1px solid #38527b;border-radius:10px;background:#10223e}.trip-editor h2{font-size:14px;margin:0 0 8px}.trip-editor .fields{margin-bottom:7px}.trip-editor select{flex:1;min-width:125px}.trip-list{max-height:150px;overflow:auto;font-size:12px}.trip-item{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 0;border-top:1px solid #334767}.trip-item button{padding:5px 8px;font-size:11px}.trip-editor small{color:#b4c5dd;display:block;margin-top:6px}.toolbar{max-height:calc(100vh - 25px);overflow-y:auto}</style></head><body>
+ .trip-editor{margin-top:12px;padding:12px;border:1px solid #38527b;border-radius:12px;background:#10223e}.trip-editor h2{font-size:15px;margin:0 0 10px}.trip-list{display:grid;gap:18px;max-height:45vh;overflow-y:auto;padding:4px 2px 8px}.trip-leg{border:1px solid #4267a3;border-radius:12px;padding:12px;background:#142643;display:grid;gap:10px;min-width:0}.trip-leg legend{font-weight:800;font-size:13px;color:#8ac1ff;padding:0 6px}.trip-leg label{display:grid;gap:5px;font-size:12px;font-weight:700}.trip-leg select{width:100%;min-width:0}.trip-leg .leg-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}.trip-leg .leg-remove{justify-self:end;font-size:12px;padding:6px 9px}.trip-actions{display:flex;gap:8px;margin-top:12px}.trip-actions button{flex:1}.trip-editor small{color:#b4c5dd;display:block;margin-top:9px}.toolbar{max-height:calc(100vh - 25px);overflow-y:auto}</style></head><body>
 <div id="map"></div><div id="night" class="night"></div><div id="tint" class="tint"></div>
 <section class="toolbar"><h1>Super-Trip 3D</h1><p>Versión independiente para computador: mapas satelitales, relieve real y animaciones de viaje. Requiere Cesium local.</p>
 <div class="fields"><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Token Cesium ion (solo en esta sesión)"><button id="start">Cargar terreno 3D</button></div>
 <div class="stages" role="group" aria-label="Iluminación"><button data-stage="0">Amanecer</button><button data-stage="1">Mañana</button><button data-stage="2" aria-pressed="true">Día</button><button data-stage="3">Tarde</button><button data-stage="4">Noche</button></div>
 <div class="control"><label for="phase">Transición</label><input id="phase" type="range" min="0" max="100" value="50" step="1"><output id="phase-label">Día</output></div>
-<section class="trip-editor"><h2>Editor de tramos</h2>
-<div class="fields"><select id="trip-from" aria-label="Ciudad de origen"></select><select id="trip-to" aria-label="Ciudad de destino"></select></div>
-<div class="fields"><select id="trip-mode" aria-label="Transporte"><option value="Avión">Avión</option><option value="Automóvil">Automóvil</option><option value="Bus">Bus</option><option value="Tren">Tren</option><option value="Barco">Barco</option></select><button id="trip-add" type="button">Agregar tramo</button></div>
-<div id="trip-list" class="trip-list" aria-live="polite"></div><small>Los tramos se editan aquí. La animación disponible por ahora es aérea y de un solo tramo.</small></section>
+<section class="trip-editor"><h2>Personalizar viaje · Tramos</h2><div id="trip-list" class="trip-list" aria-live="polite"></div><div class="trip-actions"><button id="trip-add" type="button">+ Agregar tramo</button></div><small>Configura cada tramo directamente. La animación disponible por ahora es un viaje de un solo tramo en avión.</small></section>
 <div class="fields" style="margin-top:9px"><button id="flight" disabled>Animar Santiago → Río</button><button id="reset" disabled>Vista general</button></div>
 <div class="fields" style="margin-top:8px"><button id="raw" disabled>1 · Sin filtros</button><button id="flat" disabled>2 · Terreno plano</button><button id="osm" disabled>3 · Mapa OSM</button></div>
 <div id="status" role="status">Cesium se carga localmente. Introduce el token para solicitar terreno e imágenes; no se guarda ni se envía a GitHub.</div>
@@ -69,35 +66,40 @@ const cityCatalog=[
  {name:"Salvador",lon:-38.5014,lat:-12.9777},{name:"Recife",lon:-34.8813,lat:-8.0476}
 ];
 let tripLegs=[{from:"Santiago",to:"Río de Janeiro",mode:"Avión"}];
+function updateTripPreview(){
+ const valid=tripLegs.every(leg=>leg.from!==leg.to);
+ const playable=valid&&tripLegs.length===1&&tripLegs[0].mode==="Avión";
+ $("flight").textContent=playable?"Animar "+tripLegs[0].from+" → "+tripLegs[0].to:"Animar viaje (próximamente)";
+ $("flight").disabled=!viewer||!playable;
+ if(!valid)$("status").textContent="Revisa los tramos: origen y destino deben ser diferentes.";
+}
 function renderTripEditor(){
  const list=$("trip-list");list.replaceChildren();
  tripLegs.forEach((leg,i)=>{
-  const row=document.createElement("div");row.className="trip-item";
-  const description=document.createElement("span");description.textContent=(i+1)+". "+leg.from+" → "+leg.to+" · "+leg.mode;
-  const actions=document.createElement("div");actions.style.cssText="display:flex;gap:4px";
-  const edit=document.createElement("button");edit.type="button";edit.textContent="Editar";
-  edit.addEventListener("click",()=>{
-   $("trip-from").value=leg.from;$("trip-to").value=leg.to;$("trip-mode").value=leg.mode;
-   $("trip-add").textContent="Guardar tramo "+(i+1);$("trip-add").dataset.edit=String(i);
-  });
-  const remove=document.createElement("button");remove.type="button";remove.textContent="Eliminar";
-  remove.addEventListener("click",()=>{tripLegs.splice(i,1);renderTripEditor();});
-  actions.append(edit,remove);row.append(description,actions);list.appendChild(row);
+  const fieldset=document.createElement("fieldset");fieldset.className="trip-leg";
+  const legend=document.createElement("legend");legend.textContent="Tramo "+(i+1);fieldset.appendChild(legend);
+  const pair=document.createElement("div");pair.className="leg-pair";
+  function makeSelect(labelText,value,choices,onChange){
+   const label=document.createElement("label");label.textContent=labelText;
+   const select=document.createElement("select");select.setAttribute("aria-label",labelText+" del tramo "+(i+1));
+   choices.forEach(choice=>{const option=document.createElement("option");option.value=choice;option.textContent=choice;select.appendChild(option);});
+   select.value=value;select.addEventListener("change",()=>onChange(select.value));
+   label.appendChild(select);return label;
+  }
+  pair.appendChild(makeSelect("Origen",leg.from,cityCatalog.map(c=>c.name),v=>{leg.from=v;updateTripPreview();}));
+  pair.appendChild(makeSelect("Destino",leg.to,cityCatalog.map(c=>c.name),v=>{leg.to=v;updateTripPreview();}));
+  fieldset.appendChild(pair);
+  fieldset.appendChild(makeSelect("Transporte",leg.mode,["Avión","Automóvil","Bus","Tren","Barco"],v=>{leg.mode=v;updateTripPreview();}));
+  if(i>0){const remove=document.createElement("button");remove.type="button";remove.className="leg-remove";remove.textContent="Quitar tramo";remove.addEventListener("click",()=>{tripLegs.splice(i,1);renderTripEditor();});fieldset.appendChild(remove);}
+  list.appendChild(fieldset);
  });
- $("flight").textContent=tripLegs.length===1&&tripLegs[0].mode==="Avión"?"Animar "+tripLegs[0].from+" → "+tripLegs[0].to:"Animar vuelo (1 tramo)";
- $("flight").disabled=!viewer||tripLegs.length!==1||tripLegs[0].mode!=="Avión";
+ updateTripPreview();
 }
-for(const select of [$("trip-from"),$("trip-to")]){
- for(const city of cityCatalog){const option=document.createElement("option");option.value=city.name;option.textContent=city.name;select.appendChild(option);}
-}
-$("trip-from").value="Santiago";$("trip-to").value="Río de Janeiro";
 $("trip-add").addEventListener("click",()=>{
- const from=$("trip-from").value,to=$("trip-to").value,mode=$("trip-mode").value;
- if(from===to){$("status").textContent="El origen y destino deben ser distintos.";return;}
- const editIndex=$("trip-add").dataset.edit;
- if(editIndex!==undefined){tripLegs[Number(editIndex)]={from,to,mode};delete $("trip-add").dataset.edit;$("trip-add").textContent="Agregar tramo";}
- else tripLegs.push({from,to,mode});
- renderTripEditor();$("status").textContent="Itinerario actualizado: "+tripLegs.length+" tramo(s).";
+ const previous=tripLegs[tripLegs.length-1];
+ tripLegs.push({from:previous.to,to:previous.to==="Curitiba"?"Maceió":"Curitiba",mode:"Avión"});
+ renderTripEditor();
+ $("status").textContent="Tramo "+tripLegs.length+" agregado. Configura su destino y transporte.";
 });
 renderTripEditor();
 
