@@ -39,6 +39,7 @@ body{background:#e9f2ea;color:#173c3a;font-family:system-ui,sans-serif}
 <div class="cute-actions" aria-label="Controles de viaje"><button id="cute-play" type="button" disabled>Reproducir</button><button id="cute-repeat" type="button" disabled>Repetir</button><button id="cute-save" type="button">Guardar proyecto</button><button id="cute-open" type="button">Abrir proyecto</button><input id="cute-project-file" type="file" accept=".json,application/json" hidden><button id="cute-export" type="button" disabled title="La exportación de video 3D aún no está implementada">Descargar video</button></div>
 <section class="cute-section"><h2>Mis viajes guardados</h2><button id="cute-library-save" type="button">Guardar viaje con nombre</button><div id="cute-library" style="display:grid;gap:8px;margin-top:10px"></div><small class="cute-muted">Los proyectos se guardan en este navegador. Las fotografías y la música se seleccionan de nuevo al abrirlos.</small></section>
 <section class="cute-section"><h2>Perspectiva de cámara 3D</h2><div class="cinema-camera"><button id="camera-cinema" type="button" aria-pressed="true">Cinematográfica</button><button id="camera-top" type="button" aria-pressed="false">Desde arriba</button></div><small class="cute-muted">La vista cinematográfica inclina la cámara para mostrar el relieve y el horizonte, como en la referencia.</small></section>
+<section class="cute-section"><h2>Vehículos personalizados</h2><label>Imagen con avión, auto, bus y tren (vista superior)<input id="vehicle-land" type="file" accept="image/png,image/webp,image/jpeg"></label><label>Imagen del barco (vista superior)<input id="vehicle-boat" type="file" accept="image/png,image/webp,image/jpeg"></label><small id="vehicle-status" class="cute-muted">Selecciona las dos imágenes originales para sustituir los vehículos en el mapa y en el comparador. Los archivos permanecen en este navegador.</small></section>
 <section class="cute-section" id="compare-transport"><h2>Comparar transporte</h2><label for="compare-leg">Seleccionar tramo</label><select id="compare-leg" aria-label="Tramo para comparar transporte"></select><div id="transport-comparison" class="transport-comparison"></div><small class="cute-muted">Vehículos de Cute vistos desde arriba. Pulsa uno para asignarlo al tramo. Aún son imágenes sobre el mapa 3D, no modelos GLB.</small></section>
 <section class="cute-section"><h2>Línea de tiempo · arrastra para revisar el viaje</h2><input id="cute-seek" type="range" min="0" max="100" value="0" disabled><div style="display:flex;justify-content:space-between"><output id="cute-current">00:00</output><span id="cute-total">00:30</span></div><small class="cute-muted">La búsqueda manual en la animación 3D está pendiente.</small></section>
 <section class="cute-section"><h2>Exportar para</h2><div class="cute-actions"><button type="button" data-format="9:16">Instagram · 9:16</button><button type="button" data-format="9:16">TikTok · 9:16</button><button type="button" data-format="16:9">Facebook · 16:9</button><button type="button" data-format="1:1">WhatsApp · 1:1</button></div><small class="cute-muted">Formatos preparados en la interfaz; exportación 3D aún no disponible.</small></section>
@@ -334,6 +335,41 @@ function refreshComparisonLegs(){
  sel.value=String(Math.min(previous,tripLegs.length-1));refreshTransportComparison();
 }
 
+// Recortes de las imágenes proporcionadas: vista superior para los vehículos del mapa.
+const vehicleCropBoxes={
+ "Avión":[35,55,435,490],
+ "Automóvil":[500,95,825,525],
+ "Bus":[890,45,1255,535],
+ "Tren":[1355,50,1665,540],
+ "Barco":[275,12,735,760]
+};
+function loadVehicleSheet(file,modes){
+ if(!file)return;
+ const url=URL.createObjectURL(file),img=new Image();
+ img.onload=()=>{
+  try{
+   const expected=modes.includes("Barco")?[1983,793]:[1774,887];
+   if(img.width!==expected[0]||img.height!==expected[1]){
+    $("vehicle-status").textContent="La imagen "+file.name+" tiene dimensiones distintas de la referencia ("+expected.join(" × ")+"). Comprueba que sea la imagen original.";return;
+   }
+   for(const mode of modes){
+    const [x,y,w,h]=vehicleCropBoxes[mode],canvas=document.createElement("canvas");
+    canvas.width=160;canvas.height=160;
+    const ctx=canvas.getContext("2d");
+    ctx.clearRect(0,0,160,160);
+    const scale=Math.min(150/w,150/h);
+    ctx.drawImage(img,x,y,w,h,(160-w*scale)/2,(160-h*scale)/2,w*scale,h*scale);
+    modeIcons[mode]=canvas.toDataURL("image/png");
+   }
+   refreshTransportComparison();
+   $("vehicle-status").textContent="Vehículos actualizados: "+modes.join(", ")+".";
+  }finally{URL.revokeObjectURL(url);}
+ };
+ img.onerror=()=>{$("vehicle-status").textContent="No se pudo abrir "+file.name;URL.revokeObjectURL(url);};
+ img.src=url;
+}
+$("vehicle-land").addEventListener("change",e=>loadVehicleSheet(e.target.files?.[0],["Avión","Automóvil","Bus","Tren"]));
+$("vehicle-boat").addEventListener("change",e=>loadVehicleSheet(e.target.files?.[0],["Barco"]));
 const spriteImage=new Image();
 spriteImage.onload=()=>{
  for(const [mode,[x,y,w,h]] of Object.entries(cuteRects)){
