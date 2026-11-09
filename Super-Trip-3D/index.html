@@ -156,7 +156,13 @@ async function fetchWorldSeaRoute(a,b){
  if(!response.ok)throw Error("Auto Sea Way: "+(data.error||"HTTP "+response.status));
  const points=data?.geometry?.coordinates;
  if(data.geometry?.type!=="LineString"||!Array.isArray(points)||points.length<2||points.length>50000||!points.every(p=>Array.isArray(p)&&p.length>=2&&p.every(Number.isFinite)&&Math.abs(p[0])<=180&&Math.abs(p[1])<=90))throw Error("Auto Sea Way devolvió un trazado inválido.");
- if(Array.isArray(data.land_legs)&&data.land_legs.length)throw Error("El motor detectó segmentos por tierra en esta ruta. Prueba coordenadas en agua, cerca del puerto.");
+ const landLegs=Array.isArray(data.land_legs)?data.land_legs:[];
+ const lastSegment=points.length-2;
+ if(landLegs.some(i=>!Number.isInteger(i)||i<0||i>lastSegment))throw Error("Indices terrestres invalidos.");
+ if(landLegs.some(i=>i!==0&&i!==lastSegment))throw Error("La ruta contiene segmentos terrestres intermedios.");
+ if(landLegs.includes(0))points.shift();
+ if(landLegs.includes(lastSegment))points.pop();
+ if(points.length<2)throw Error("No quedan suficientes puntos maritimos.");
  const found={points,maritime:true,worldwide:true,source:"Auto Sea Way · trazado mundial por agua",distanceNm:data.distance_nm};
  seaRouteCache.set(key,found);return found;
 }
