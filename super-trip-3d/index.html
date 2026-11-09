@@ -25,7 +25,7 @@
 "use strict";
 const $=id=>document.getElementById(id),labels=["Amanecer","Mañana","Día","Tarde","Noche"];
 const stops=[{color:[221,128,163],night:.16},{color:[170,210,234],night:.03},{color:[230,246,255],night:0},{color:[224,144,99],night:.17},{color:[19,41,82],night:.70}];
-let viewer=null,route=null,plane=null,trail=null,animationId=0,worldTerrain=null,originalImagery=null;
+let viewer=null,route=null,plane=null,trail=null,cityMarkers=[],cityPositions=[],animationId=0,worldTerrain=null,originalImagery=null;
 let rawMode=false,flatMode=false,osmMode=false;
 const diagnostic={source:"sin iniciar",imageryErrors:0,terrainErrors:0,tilesPending:"?",tilesRendered:"?",lastError:"ninguno"};
 function safeDiagnostic(message){return String(message||"desconocido")
@@ -164,15 +164,15 @@ async function start(){const token=$("token").value.trim();if(!token){$("status"
  viewer.scene.globe.baseColor=Cesium.Color.fromCssColorString("#447b9a");
  viewer.scene.backgroundColor=Cesium.Color.fromCssColorString("#071327");
  viewer.scene.globe.showGroundAtmosphere=true;
- const p=positions();
+ const p=positions();cityPositions=p;
  // Etiquetas HTML transparentes para evitar los rectángulos del atlas de Cesium.
  const cityTags=cities.map(c=>{
   const tag=document.createElement("span");
-  tag.textContent=c.name;
+  tag.textContent=c.name;tag.className="trip-city-tag";
   tag.style.cssText="position:absolute;z-index:2;pointer-events:none;white-space:nowrap;color:white;font:bold 15px system-ui,Arial;text-shadow:0 1px 3px #000,1px 0 3px #000,-1px 0 3px #000;transform:translate(-50%,12px);";
   document.body.appendChild(tag);return tag;
  });
- cities.forEach((c,i)=>viewer.entities.add({position:p[i],point:{pixelSize:12,color:Cesium.Color.fromCssColorString("#ff694d"),outlineColor:Cesium.Color.WHITE,outlineWidth:2}}));
+ cities.forEach((c,i)=>cityMarkers.push(viewer.entities.add({position:p[i],point:{pixelSize:12,color:Cesium.Color.fromCssColorString("#ff694d"),outlineColor:Cesium.Color.WHITE,outlineWidth:2}})));
  viewer.scene.postRender.addEventListener(()=>{
   const rect=viewer.canvas.getBoundingClientRect();
   cityTags.forEach((tag,i)=>{
@@ -206,6 +206,9 @@ $("flight").addEventListener("click",()=>{
  const leg=tripLegs[0],a=cityCatalog.find(c=>c.name===leg.from),b=cityCatalog.find(c=>c.name===leg.to);
  if(!a||!b)return;
  cities[0]={...a};cities[1]={...b};
+ cityPositions.splice(0,cityPositions.length,...positions());
+ cityMarkers.forEach((marker,i)=>{marker.position=cityPositions[i];});
+ document.querySelectorAll(".trip-city-tag").forEach((tag,i)=>{tag.textContent=cities[i].name;});
  cancelAnimationFrame(animationId);
  if(plane)viewer.entities.remove(plane);
  if(trail)viewer.entities.remove(trail);
