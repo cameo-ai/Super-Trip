@@ -35,7 +35,8 @@ body{background:#e9f2ea;color:#173c3a;font-family:system-ui,sans-serif}
 </style></head><body>
 <div id="map"></div><div id="night" class="night"></div><div id="tint" class="tint"></div>
 <section class="toolbar"><h1>Super-Trip 3D</h1><p>Versión independiente para computador: mapas satelitales, relieve real y animaciones de viaje. Requiere Cesium local.</p>
-<section class="cute-section" id="cesium-access"><h2>Conexión al mapa 3D</h2><label for="token">Token de acceso Cesium ion</label><div class="fields"><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Token Cesium ion (solo en esta sesión)"><button id="start">Cargar terreno 3D</button></div><small class="cute-muted">Introduce tu token aquí para cargar el terreno. Se utiliza durante esta sesión; no se incluye en los proyectos guardados.</small></section>\n<div class="cute-actions" aria-label="Controles de viaje"><button id="cute-play" type="button" disabled>Reproducir</button><button id="cute-repeat" type="button" disabled>Repetir</button><button id="cute-save" type="button">Guardar proyecto</button><button id="cute-open" type="button">Abrir proyecto</button><input id="cute-project-file" type="file" accept=".json,application/json" hidden><button id="cute-export" type="button" disabled title="La exportación de video 3D aún no está implementada">Descargar video</button></div>
+<section class="cute-section" id="cesium-access"><h2>Conexión al mapa 3D</h2><label for="token">Token de acceso Cesium ion</label><div class="fields"><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Token Cesium ion (solo en esta sesión)"><button id="start">Cargar terreno 3D</button></div><small class="cute-muted">Introduce tu token aquí para cargar el terreno. Se utiliza durante esta sesión; no se incluye en los proyectos guardados.</small></section>
+<div class="cute-actions" aria-label="Controles de viaje"><button id="cute-play" type="button" disabled>Reproducir</button><button id="cute-repeat" type="button" disabled>Repetir</button><button id="cute-save" type="button">Guardar proyecto</button><button id="cute-open" type="button">Abrir proyecto</button><input id="cute-project-file" type="file" accept=".json,application/json" hidden><button id="cute-export" type="button" disabled title="La exportación de video 3D aún no está implementada">Descargar video</button></div>
 <section class="cute-section"><h2>Mis viajes guardados</h2><button id="cute-library-save" type="button">Guardar viaje con nombre</button><div id="cute-library" style="display:grid;gap:8px;margin-top:10px"></div><small class="cute-muted">Los proyectos se guardan en este navegador. Las fotografías y la música se seleccionan de nuevo al abrirlos.</small></section>
 <section class="cute-section"><h2>Línea de tiempo · arrastra para revisar el viaje</h2><input id="cute-seek" type="range" min="0" max="100" value="0" disabled><div style="display:flex;justify-content:space-between"><output id="cute-current">00:00</output><span id="cute-total">00:30</span></div><small class="cute-muted">La búsqueda manual en la animación 3D está pendiente.</small></section>
 <section class="cute-section"><h2>Exportar para</h2><div class="cute-actions"><button type="button" data-format="9:16">Instagram · 9:16</button><button type="button" data-format="9:16">TikTok · 9:16</button><button type="button" data-format="16:9">Facebook · 16:9</button><button type="button" data-format="1:1">WhatsApp · 1:1</button></div><small class="cute-muted">Formatos preparados en la interfaz; exportación 3D aún no disponible.</small></section>
@@ -116,7 +117,9 @@ function updateTripPreview(){
  const valid=tripLegs.every(leg=>leg.from!==leg.to);
  const playable=valid&&tripLegs.length>0;
  $("flight").textContent=playable?"Animar viaje · "+tripLegs.length+" tramo(s)":"Revisa los tramos";
- $("flight").disabled=!viewer||!playable;\n $("cute-play").disabled=!viewer||!playable;\n $("cute-repeat").disabled=!viewer||!playable;
+ $("flight").disabled=!viewer||!playable;
+ $("cute-play").disabled=!viewer||!playable;
+ $("cute-repeat").disabled=!viewer||!playable;
  if(!valid)$("status").textContent="Revisa los tramos: origen y destino deben ser diferentes.";
 }
 function renderTripEditor(){
@@ -178,7 +181,8 @@ $("cute-project-file").addEventListener("change",async e=>{try{const f=e.target.
 function drawCuteLibrary(){const el=$("cute-library");el.replaceChildren();let items=[];try{items=JSON.parse(localStorage.getItem("supertrip3d-library")||"[]");}catch{}items.forEach((item,i)=>{const div=document.createElement("div");div.className="cute-section";div.style.margin="0";const title=document.createElement("strong");title.textContent=item.name;const btn=document.createElement("button");btn.textContent="Abrir";btn.style.marginLeft="8px";btn.onclick=()=>{try{restoreCuteProject(item.project)}catch(err){$("status").textContent=err.message}};const del=document.createElement("button");del.textContent="Eliminar";del.style.marginLeft="5px";del.onclick=()=>{items.splice(i,1);localStorage.setItem("supertrip3d-library",JSON.stringify(items));drawCuteLibrary()};div.append(title,btn,del);el.appendChild(div);});}
 $("cute-library-save").addEventListener("click",()=>{const name=prompt("Nombre del viaje");if(!name?.trim())return;let items=[];try{items=JSON.parse(localStorage.getItem("supertrip3d-library")||"[]")}catch{}items.push({name:name.trim().slice(0,80),project:cuteProject()});try{localStorage.setItem("supertrip3d-library",JSON.stringify(items));drawCuteLibrary()}catch{$("status").textContent="No hay espacio disponible para guardar el viaje."}});
 drawCuteLibrary();
-\nasync function start(){const token=$("token").value.trim();if(!token){$("status").textContent="Se necesita un token válido para solicitar terreno 3D.";return;}
+
+async function start(){const token=$("token").value.trim();if(!token){$("status").textContent="Se necesita un token válido para solicitar terreno 3D.";return;}
  $("start").disabled=true;$("status").textContent="Cargando terreno y texturas...";
  try{
  // Comprobar únicamente el estado HTTP. Nunca mostrar ni registrar el token.
