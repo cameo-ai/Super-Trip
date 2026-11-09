@@ -156,7 +156,13 @@ async function fetchWorldSeaRoute(a,b){
  if(!response.ok)throw Error("Auto Sea Way: "+(data.error||"HTTP "+response.status));
  const points=data?.geometry?.coordinates;
  if(data.geometry?.type!=="LineString"||!Array.isArray(points)||points.length<2||points.length>50000||!points.every(p=>Array.isArray(p)&&p.length>=2&&p.every(Number.isFinite)&&Math.abs(p[0])<=180&&Math.abs(p[1])<=90))throw Error("Auto Sea Way devolvió un trazado inválido.");
- if(Array.isArray(data.land_legs)&&data.land_legs.length)throw Error("El motor detectó segmentos por tierra en esta ruta. Prueba coordenadas en agua, cerca del puerto.");
+ const landLegs=Array.isArray(data.land_legs)?data.land_legs:[];
+ const lastSegment=points.length-2;
+ if(landLegs.some(i=>!Number.isInteger(i)||i<0||i>lastSegment))throw Error("Indices terrestres invalidos.");
+ if(landLegs.some(i=>i!==0&&i!==lastSegment))throw Error("La ruta contiene segmentos terrestres intermedios.");
+ if(landLegs.includes(0))points.shift();
+ if(landLegs.includes(lastSegment))points.pop();
+ if(points.length<2)throw Error("No quedan suficientes puntos maritimos.");
  const found={points,maritime:true,worldwide:true,source:"Auto Sea Way · trazado mundial por agua",distanceNm:data.distance_nm};
  seaRouteCache.set(key,found);return found;
 }
@@ -877,13 +883,23 @@ function beginLeg(index){
    const currentLocation=activeTripLocation(leg,progress);
    const lon=currentLocation.lon,lat=currentLocation.lat;
   previousLon=interpolate(previousLon,lon,.14);previousLat=interpolate(previousLat,lat,.14);
-   const targetRange=cameraRangeForLeg(leg);
+   // Encuadre cinematográfico según el formato de exportación: zoom de salida,
+   // seguimiento del vehículo y apertura de plano al llegar.
+   const exportAspect=selectedExportFormat==="9:16"?9/16:selectedExportFormat==="1:1"?1:16/9;
+   const viewAspect=Math.max(.25,viewer.canvas.clientWidth/Math.max(1,viewer.canvas.clientHeight));
+   const portraitFactor=Math.max(1,viewAspect/exportAspect);
+   const baseRange=cameraRangeForLeg(leg);
+   const zoomProgress=segment.key==="travel"?Math.sin(Math.PI*progress):0;
+   const cinematicRange=baseRange*(1.85-.72*zoomProgress)*Math.min(2.2,Math.sqrt(portraitFactor));
+   const targetRange=cameraMode==="cinema"?cinematicRange:baseRange;
    cameraRange=cameraRange===null?targetRange:interpolate(cameraRange,targetRange,.065);
    if(cameraMode==="cinema"){
-    // Cámara oblicua con zoom suave al cambiar entre tramos largos y cortos.
-    const heading=Cesium.Math.toRadians(0);
-    const focus=Cesium.Cartesian3.fromDegrees(previousLon,previousLat,0);
-    viewer.camera.lookAt(focus,new Cesium.HeadingPitchRange(heading,Cesium.Math.toRadians(-43),cameraRange));
+    // Adelantar levemente el punto de interés mantiene visible el camino por recorrer.
+    const lookAhead=activeTripLocation(leg,Math.min(1,progress+.025));
+    const focusLon=interpolate(previousLon,lookAhead.lon,.22);
+    const focusLat=interpolate(previousLat,lookAhead.lat,.22);
+    const focus=Cesium.Cartesian3.fromDegrees(focusLon,focusLat,0);
+    viewer.camera.lookAt(focus,new Cesium.HeadingPitchRange(0,Cesium.Math.toRadians(-48),cameraRange));
     viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
    }else{
     viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(previousLon,previousLat,cameraRange),
