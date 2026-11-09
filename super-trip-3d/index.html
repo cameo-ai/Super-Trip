@@ -32,16 +32,17 @@ body{background:#e9f2ea;color:#173c3a;font-family:system-ui,sans-serif}
 .cute-actions button{font-size:12px;padding:9px}
 .cute-stage{position:absolute;top:12px;right:12px;max-width:calc(100% - 500px);pointer-events:none;background:#f8fcf7dd;color:#173c3a;padding:8px 13px;border-radius:12px;font-size:13px;font-weight:800}
 @media(max-width:850px){.cute-stage{display:none}.toolbar{max-width:min(460px,calc(100vw - 24px))}}
-.transport-comparison{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin-top:10px}.transport-choice{min-width:0;padding:5px 2px!important;display:flex;flex-direction:column;align-items:center;gap:5px;border-radius:9px}.transport-choice img{width:100%;max-width:60px;height:62px;object-fit:contain}.transport-choice strong{font-size:10px;overflow-wrap:anywhere}.transport-choice[aria-pressed=true]{background:#d8efe4!important;border:2px solid #156655!important}</style></head><body>
+.transport-comparison{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin-top:10px}.transport-choice{min-width:0;padding:5px 2px!important;display:flex;flex-direction:column;align-items:center;gap:5px;border-radius:9px}.transport-choice img{width:100%;max-width:60px;height:62px;object-fit:contain}.transport-choice strong{font-size:10px;overflow-wrap:anywhere}.transport-choice[aria-pressed=true]{background:#d8efe4!important;border:2px solid #156655!important}.cinema-camera{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0}.cinema-camera button[aria-pressed=true]{background:#156655!important;color:white!important}.music-status{font-size:11px;color:#456459;display:block;margin-top:6px}</style></head><body>
 <div id="map"></div><div id="night" class="night"></div><div id="tint" class="tint"></div>
 <section class="toolbar"><h1>Super-Trip 3D</h1><p>Versión independiente para computador: mapas satelitales, relieve real y animaciones de viaje. Requiere Cesium local.</p>
 <section class="cute-section" id="cesium-access"><h2>Conexión al mapa 3D</h2><label for="token">Token de acceso Cesium ion</label><div class="fields"><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Token Cesium ion (solo en esta sesión)"><button id="start">Cargar terreno 3D</button></div><small class="cute-muted">Introduce tu token aquí para cargar el terreno. Se utiliza durante esta sesión; no se incluye en los proyectos guardados.</small></section>
 <div class="cute-actions" aria-label="Controles de viaje"><button id="cute-play" type="button" disabled>Reproducir</button><button id="cute-repeat" type="button" disabled>Repetir</button><button id="cute-save" type="button">Guardar proyecto</button><button id="cute-open" type="button">Abrir proyecto</button><input id="cute-project-file" type="file" accept=".json,application/json" hidden><button id="cute-export" type="button" disabled title="La exportación de video 3D aún no está implementada">Descargar video</button></div>
 <section class="cute-section"><h2>Mis viajes guardados</h2><button id="cute-library-save" type="button">Guardar viaje con nombre</button><div id="cute-library" style="display:grid;gap:8px;margin-top:10px"></div><small class="cute-muted">Los proyectos se guardan en este navegador. Las fotografías y la música se seleccionan de nuevo al abrirlos.</small></section>
+<section class="cute-section"><h2>Perspectiva de cámara 3D</h2><div class="cinema-camera"><button id="camera-cinema" type="button" aria-pressed="true">Cinematográfica</button><button id="camera-top" type="button" aria-pressed="false">Desde arriba</button></div><small class="cute-muted">La vista cinematográfica inclina la cámara para mostrar el relieve y el horizonte, como en la referencia.</small></section>
 <section class="cute-section" id="compare-transport"><h2>Comparar transporte</h2><label for="compare-leg">Seleccionar tramo</label><select id="compare-leg" aria-label="Tramo para comparar transporte"></select><div id="transport-comparison" class="transport-comparison"></div><small class="cute-muted">Vehículos de Cute vistos desde arriba. Pulsa uno para asignarlo al tramo. Aún son imágenes sobre el mapa 3D, no modelos GLB.</small></section>
 <section class="cute-section"><h2>Línea de tiempo · arrastra para revisar el viaje</h2><input id="cute-seek" type="range" min="0" max="100" value="0" disabled><div style="display:flex;justify-content:space-between"><output id="cute-current">00:00</output><span id="cute-total">00:30</span></div><small class="cute-muted">La búsqueda manual en la animación 3D está pendiente.</small></section>
 <section class="cute-section"><h2>Exportar para</h2><div class="cute-actions"><button type="button" data-format="9:16">Instagram · 9:16</button><button type="button" data-format="9:16">TikTok · 9:16</button><button type="button" data-format="16:9">Facebook · 16:9</button><button type="button" data-format="1:1">WhatsApp · 1:1</button></div><small class="cute-muted">Formatos preparados en la interfaz; exportación 3D aún no disponible.</small></section>
-<details class="cute-section" open><summary style="font-weight:800;cursor:pointer">Personalizar viaje</summary><div class="cute-grid" style="margin-top:12px"><label>Duración total del video (segundos)<input id="cute-duration" type="number" min="5" max="600" value="30"></label><label>Iluminación<select id="cute-light"><option value="50">Día</option><option value="0">Amanecer</option><option value="25">Mañana</option><option value="75">Tarde</option><option value="100">Noche</option></select></label></div><div class="cute-section"><h2>Música de fondo (MP3)</h2><input id="cute-music" type="file" accept=".mp3,audio/mpeg"><div class="cute-grid" style="margin-top:8px"><label>Volumen <input id="cute-volume" type="range" min="0" max="100" value="80"></label><label>Fade in (segundos)<input id="cute-fade" type="number" min="0" max="30" value="2"></label></div><small class="cute-muted">Música seleccionable; integración con video 3D pendiente.</small></div>
+<details class="cute-section" open><summary style="font-weight:800;cursor:pointer">Personalizar viaje</summary><div class="cute-grid" style="margin-top:12px"><label>Duración total del video (segundos)<input id="cute-duration" type="number" min="5" max="600" value="30"></label><label>Iluminación<select id="cute-light"><option value="50">Día</option><option value="0">Amanecer</option><option value="25">Mañana</option><option value="75">Tarde</option><option value="100">Noche</option></select></label></div><div class="cute-section"><h2>Música de fondo (MP3)</h2><input id="cute-music" type="file" accept=".mp3,audio/mpeg"><div class="cute-grid" style="margin-top:8px"><label>Volumen <input id="cute-volume" type="range" min="0" max="100" value="80"></label><label>Fade in (segundos)<input id="cute-fade" type="number" min="0" max="30" value="2"></label></div><small class="cute-muted">El MP3 se reproduce durante la animación. No se guarda dentro del proyecto JSON ni se incorpora todavía a un archivo de video.</small></div>
 <div class="stages" role="group" aria-label="Iluminación"><button data-stage="0">Amanecer</button><button data-stage="1">Mañana</button><button data-stage="2" aria-pressed="true">Día</button><button data-stage="3">Tarde</button><button data-stage="4">Noche</button></div>
 <div class="control"><label for="phase">Transición</label><input id="phase" type="range" min="0" max="100" value="50" step="1"><output id="phase-label">Día</output></div>
 <section class="trip-editor"><h2>Personalizar viaje · Tramos</h2><div id="trip-list" class="trip-list" aria-live="polite"></div><div class="trip-actions"><button id="trip-add" type="button">+ Agregar tramo</button></div><small>Configura cada tramo directamente. La animación disponible por ahora es un viaje de un solo tramo en avión.</small></section>
@@ -169,6 +170,32 @@ $("trip-add").addEventListener("click",()=>{
 renderTripEditor();
 
 
+// Música local: no se sube a servicios ni se incorpora a los proyectos JSON.
+let musicUrl=null;const tripAudio=new Audio();tripAudio.preload="auto";
+let audioRunStart=0,audioFadeFrame=0;
+const musicStatus=document.createElement("span");musicStatus.className="music-status";musicStatus.setAttribute("role","status");
+$("cute-music").insertAdjacentElement("afterend",musicStatus);
+function audioVolumeAt(ms){const target=Number($("cute-volume").value)/100,fade=Math.max(0,Number($("cute-fade").value)||0)*1000;return fade>0?target*Math.min(1,Math.max(0,ms/fade)):target;}
+function stopTripMusic(){cancelAnimationFrame(audioFadeFrame);tripAudio.pause();tripAudio.currentTime=0;}
+function fadeTripMusic(){if(tripAudio.paused)return;tripAudio.volume=audioVolumeAt(performance.now()-audioRunStart);audioFadeFrame=requestAnimationFrame(fadeTripMusic);}
+$("cute-music").addEventListener("change",e=>{
+ const file=e.target.files?.[0];stopTripMusic();if(musicUrl){URL.revokeObjectURL(musicUrl);musicUrl=null;}
+ if(!file){tripAudio.removeAttribute("src");musicStatus.textContent="Sin música seleccionada.";return;}
+ if(!/\.mp3$/i.test(file.name)&&file.type!=="audio/mpeg"){musicStatus.textContent="Selecciona un archivo MP3.";return;}
+ musicUrl=URL.createObjectURL(file);tripAudio.src=musicUrl;tripAudio.load();musicStatus.textContent="MP3 preparado: "+file.name;
+});
+tripAudio.addEventListener("error",()=>musicStatus.textContent="No se pudo decodificar este MP3. Prueba otro archivo.");
+$("cute-volume").addEventListener("input",()=>{if(tripAudio.paused)tripAudio.volume=Number($("cute-volume").value)/100;});
+function playTripMusic(){
+ if(!musicUrl){musicStatus.textContent="Viaje sin música. Puedes seleccionar un MP3.";return;}
+ stopTripMusic();tripAudio.volume=audioVolumeAt(0);audioRunStart=performance.now();
+ const pending=tripAudio.play();
+ if(pending?.then)pending.then(()=>{musicStatus.textContent="Reproduciendo MP3";fadeTripMusic();}).catch(()=>{musicStatus.textContent="El navegador bloqueó el audio. Pulsa Reproducir nuevamente.";});
+}
+let cameraMode="cinema";
+function setCameraMode(mode){cameraMode=mode;$("camera-cinema").setAttribute("aria-pressed",String(mode==="cinema"));$("camera-top").setAttribute("aria-pressed",String(mode==="top"));}
+$("camera-cinema").addEventListener("click",()=>setCameraMode("cinema"));
+$("camera-top").addEventListener("click",()=>setCameraMode("top"));
 // Controles de la interfaz Cute adaptados al prototipo 3D.
 const cuteDuration=$("cute-duration");
 const durationLabel=()=>{$("cute-total").textContent="00:"+String(Math.max(0,Number(cuteDuration.value)||30)).padStart(2,"0");};
@@ -353,6 +380,7 @@ function tripPoint(a,b,t,mode){
  return Cesium.Cartesian3.fromDegrees(interpolate(a.lon,b.lon,t),interpolate(a.lat,b.lat,t),height);
 }
 $("flight").addEventListener("click",()=>{
+ playTripMusic();
  if(!viewer||tripLegs.length===0||tripLegs.some(leg=>leg.from===leg.to))return;
  if(Object.keys(modeIcons).length!==5){$("status").textContent="Preparando los vehículos originales de Cute…";return;}
  const legs=tripLegs.map(leg=>({...leg,a:cityCatalog.find(c=>c.name===leg.from),b:cityCatalog.find(c=>c.name===leg.to)}));
@@ -389,11 +417,19 @@ $("flight").addEventListener("click",()=>{
   const leg=legs[index];
   const lon=interpolate(leg.a.lon,leg.b.lon,progress),lat=interpolate(leg.a.lat,leg.b.lat,progress);
   previousLon=interpolate(previousLon,lon,.14);previousLat=interpolate(previousLat,lat,.14);
-  viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(previousLon,previousLat,leg.mode==="Avión"?1450000:550000),
-   orientation:{heading:0,pitch:Cesium.Math.toRadians(-90),roll:0}});
+  if(cameraMode==="cinema"){
+   // Cámara oblicua: mira hacia el tramo desde atrás, con horizonte y relieve visibles.
+   const heading=Cesium.Math.toRadians(0);
+   const focus=Cesium.Cartesian3.fromDegrees(previousLon,previousLat,0);
+   viewer.camera.lookAt(focus,new Cesium.HeadingPitchRange(heading,Cesium.Math.toRadians(-43),leg.mode==="Avión"?1750000:820000));
+   viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+  }else{
+   viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(previousLon,previousLat,leg.mode==="Avión"?1450000:550000),
+    orientation:{heading:0,pitch:Cesium.Math.toRadians(-90),roll:0}});
+  }
   viewer.scene.requestRender();
   if((now-start)<perLeg*legs.length)animationId=requestAnimationFrame(frame);
-  else $("status").textContent="Viaje completado: "+legs.length+" tramo(s).";
+  else {$("status").textContent="Viaje completado: "+legs.length+" tramo(s).";tripAudio.pause();cancelAnimationFrame(audioFadeFrame);}
  }
  animationId=requestAnimationFrame(frame);
 });
