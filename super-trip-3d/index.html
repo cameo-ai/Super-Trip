@@ -380,9 +380,9 @@ function tripPoint(a,b,t,mode){
  return Cesium.Cartesian3.fromDegrees(interpolate(a.lon,b.lon,t),interpolate(a.lat,b.lat,t),height);
 }
 $("flight").addEventListener("click",()=>{
- playTripMusic();
  if(!viewer||tripLegs.length===0||tripLegs.some(leg=>leg.from===leg.to))return;
  if(Object.keys(modeIcons).length!==5){$("status").textContent="Preparando los vehículos originales de Cute…";return;}
+ playTripMusic();
  const legs=tripLegs.map(leg=>({...leg,a:cityCatalog.find(c=>c.name===leg.from),b:cityCatalog.find(c=>c.name===leg.to)}));
  if(legs.some(leg=>!leg.a||!leg.b))return;
  cancelAnimationFrame(animationId);
