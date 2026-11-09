@@ -819,7 +819,7 @@ $("flight").addEventListener("click",async()=>{
   if(!p||!q)return previous;
   const dx=q.x-p.x,dy=q.y-p.y;
   if(dx*dx+dy*dy<.0001)return previous;
-  const desired=-Math.atan2(dx,-dy);
+  const desired=-Math.atan2(dx,-dy)+(mode==="Barco"?Math.PI:0);
   const diff=Math.atan2(Math.sin(desired-previous),Math.cos(desired-previous));
   previous+=diff;
   return previous;
