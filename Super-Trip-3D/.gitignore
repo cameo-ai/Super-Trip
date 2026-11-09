@@ -1,0 +1,4 @@
+asw.env
+*.env
+*.key
+__pycache__/
