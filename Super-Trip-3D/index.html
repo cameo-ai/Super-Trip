@@ -213,7 +213,7 @@ function renderTripEditor(){
    fieldset.appendChild(routeHint);
    if(leg.mode==="Barco"){
     const seaInfo=document.createElement("small");seaInfo.textContent="Auto Sea Way: selecciona puertos del catálogo mundial o introduce coordenadas de cualquier puerto (latitud,longitud). Las coordenadas deben estar sobre agua.";fieldset.appendChild(seaInfo);
-    for(const [caption,key,placeholder] of [["Salida: coordenadas marítimas (opcional)","fromPortCoords","-33.045,-71.635"],["Llegada: coordenadas marítimas (opcional)","toPortCoords","-23.967,-46.315"]]){
+    for(const [caption,key,placeholder] of [["Nombre del puerto de salida (si usas coordenadas)","fromPortName","Ej. Puerto de Vitoria"],["Salida: coordenadas marítimas (opcional)","fromPortCoords","-33.045,-71.635"],["Nombre del puerto de llegada (si usas coordenadas)","toPortName","Ej. Puerto de Busan"],["Llegada: coordenadas marítimas (opcional)","toPortCoords","-23.967,-46.315"]]){
      const label=document.createElement("label");label.textContent=caption;
      const input=document.createElement("input");input.type="text";input.placeholder=placeholder;input.value=leg[key]||"";
      input.addEventListener("change",()=>{leg[key]=input.value.trim();updateTripPreview();});label.appendChild(input);fieldset.appendChild(label);
@@ -299,8 +299,8 @@ function selectExportFormat(format,target){
 }
 document.querySelectorAll("[data-format]").forEach(button=>button.addEventListener("click",()=>selectExportFormat(button.dataset.format,button.dataset.formatName)));
 selectExportFormat("9:16","Instagram");
-const cuteProject=()=>({version:1,name:"Super-Trip 3D",duration:Number(cuteDuration.value)||30,exportFormat:selectedExportFormat,exportTarget:selectedExportTarget,legs:tripLegs.map(({from,to,mode,moment,seconds,routeKind,departurePhotoSeconds,arrivalPhotoSeconds,fromPortCoords,toPortCoords})=>({from,to,mode,moment,seconds,routeKind:routeKind||"auto",departurePhotoSeconds:departurePhotoSeconds||5,arrivalPhotoSeconds:arrivalPhotoSeconds||5,fromPortCoords:fromPortCoords||"",toPortCoords:toPortCoords||""}))});
-function restoreCuteProject(data){if(!data||!Array.isArray(data.legs)||!data.legs.length)throw Error("Proyecto inválido");const valid=data.legs.every(l=>cityCatalog.some(c=>c.name===l.from)&&cityCatalog.some(c=>c.name===l.to)&&["Avión","Automóvil","Bus","Tren","Barco"].includes(l.mode));if(!valid)throw Error("Ciudades o transportes no reconocidos");tripLegs=data.legs.map(l=>({from:l.from,to:l.to,mode:l.mode,moment:l.moment||"Automático",seconds:l.seconds||null,routeKind:["auto","real","fiction"].includes(l.routeKind)?l.routeKind:"auto",departurePhotoSeconds:l.departurePhotoSeconds||5,arrivalPhotoSeconds:l.arrivalPhotoSeconds||5,fromPortCoords:String(l.fromPortCoords||""),toPortCoords:String(l.toPortCoords||"")}));cuteDuration.value=data.duration||30;durationLabel();selectExportFormat(["9:16","16:9","1:1"].includes(data.exportFormat)?data.exportFormat:"9:16",["Instagram","TikTok","Facebook","WhatsApp"].includes(data.exportTarget)?data.exportTarget:"Instagram");renderTripEditor();}
+const cuteProject=()=>({version:1,name:"Super-Trip 3D",duration:Number(cuteDuration.value)||30,exportFormat:selectedExportFormat,exportTarget:selectedExportTarget,legs:tripLegs.map(({from,to,mode,moment,seconds,routeKind,departurePhotoSeconds,arrivalPhotoSeconds,fromPortCoords,toPortCoords,fromPortName,toPortName})=>({from,to,mode,moment,seconds,routeKind:routeKind||"auto",departurePhotoSeconds:departurePhotoSeconds||5,arrivalPhotoSeconds:arrivalPhotoSeconds||5,fromPortCoords:fromPortCoords||"",toPortCoords:toPortCoords||"",fromPortName:fromPortName||"",toPortName:toPortName||""}))});
+function restoreCuteProject(data){if(!data||!Array.isArray(data.legs)||!data.legs.length)throw Error("Proyecto inválido");const valid=data.legs.every(l=>cityCatalog.some(c=>c.name===l.from)&&cityCatalog.some(c=>c.name===l.to)&&["Avión","Automóvil","Bus","Tren","Barco"].includes(l.mode));if(!valid)throw Error("Ciudades o transportes no reconocidos");tripLegs=data.legs.map(l=>({from:l.from,to:l.to,mode:l.mode,moment:l.moment||"Automático",seconds:l.seconds||null,routeKind:["auto","real","fiction"].includes(l.routeKind)?l.routeKind:"auto",departurePhotoSeconds:l.departurePhotoSeconds||5,arrivalPhotoSeconds:l.arrivalPhotoSeconds||5,fromPortCoords:String(l.fromPortCoords||""),toPortCoords:String(l.toPortCoords||""),fromPortName:String(l.fromPortName||""),toPortName:String(l.toPortName||"")}));cuteDuration.value=data.duration||30;durationLabel();selectExportFormat(["9:16","16:9","1:1"].includes(data.exportFormat)?data.exportFormat:"9:16",["Instagram","TikTok","Facebook","WhatsApp"].includes(data.exportTarget)?data.exportTarget:"Instagram");renderTripEditor();}
 $("cute-save").addEventListener("click",()=>{const blob=new Blob([JSON.stringify(cuteProject(),null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="super-trip-3d.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);});
 $("cute-open").addEventListener("click",()=>$("cute-project-file").click());
 $("cute-project-file").addEventListener("change",async e=>{try{const f=e.target.files?.[0];if(f)restoreCuteProject(JSON.parse(await f.text()));}catch(err){$("status").textContent="No se pudo abrir el proyecto: "+err.message;}e.target.value="";});
@@ -699,7 +699,7 @@ async function resolveTripLeg(leg,kind){
    if(!fallback)throw err;
    found=fallback;
   }
-  return {...leg,a,b,found,path:buildRoutePath(found.points)};
+  return {...leg,from:a.name,to:b.name,a,b,found,path:buildRoutePath(found.points)};
  }
  a=cityCatalog.find(c=>c.name===leg.from);b=cityCatalog.find(c=>c.name===leg.to);
  if(!a||!b)throw Error("Ciudad no reconocida");
